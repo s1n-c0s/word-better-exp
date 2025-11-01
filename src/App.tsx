@@ -2,6 +2,24 @@ import { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, RotateCw } from 'lucide-react';
+// Import docx components และ file-saver
+import { 
+  Document, 
+  Packer, 
+  Paragraph, 
+  TextRun, 
+  PageOrientation, 
+  WidthType, 
+  AlignmentType, 
+  Table, 
+  TableRow, 
+  TableCell, 
+  VerticalAlign 
+} from 'docx'; 
+import * as FileSaver from 'file-saver'; 
+
+const SARABUN_FONT = 'Sarabun';
+const PAGE_MARGIN_CM = 2 * 567; // 2cm ในหน่วย Dxa (Word Unit: 1cm = 567 dxa)
 
 export default function DocumentEditor() {
   const [isLandscape, setIsLandscape] = useState(true);
@@ -23,114 +41,176 @@ export default function DocumentEditor() {
   // Stamp info (top right)
   const [stampText, setStampText] = useState('ชำระค่าฝากส่งเป็นรายเดือน\nในอนุญาตเลขที่ ๕๕/๒๕๒๓\nพิษณุโลก');
 
-  const handleDownload = () => {
-    // Create HTML content for Word document
-    const htmlContent = `
-<!DOCTYPE html>
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head>
-  <meta charset='utf-8'>
-  <title>Envelope Label</title>
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 2cm;
-    }
-    body {
-      font-family: 'Angsana New', 'Cordia New', 'TH SarabunPSK', sans-serif;
-      font-size: 16pt;
-      line-height: 1.5;
-    }
-    .container {
-      position: relative;
-      width: 100%;
-      height: 18cm;
-    }
-    .garuda {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 60px;
-      height: 80px;
-      border: 1px solid #000;
-      text-align: center;
-      font-size: 10pt;
-    }
-    .stamp-box {
-      position: absolute;
-      top: 0;
-      right: 0;
-      border: 2px solid #000;
-      padding: 10px;
-      text-align: center;
-      font-size: 11pt;
-      min-width: 180px;
-    }
-    .sender {
-      position: absolute;
-      top: 100px;
-      left: 0;
-      max-width: 45%;
-      font-size: 16pt;
-      line-height: 1.8;
-    }
-    .recipient {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      font-size: 20pt;
-      line-height: 1.8;
-      min-width: 400px;
-    }
-    .recipient .postal {
-      font-weight: bold;
-      font-size: 22pt;
-      margin-top: 20px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="garuda">
-      <p style="margin: 30px 0 0 0;">ตราครุฑ</p>
-    </div>
-    
-    <div class="stamp-box">
-      ${stampText.replace(/\n/g, '<br>')}
-    </div>
-    
-    <div class="sender">
-      <p style="margin: 0;">${documentNumber}</p>
-      <p style="margin: 0;">${senderOrg}</p>
-      <p style="margin: 0;">${senderUniversity}</p>
-      <p style="margin: 0;">${senderAddress1}</p>
-      <p style="margin: 0;">${senderAddress2}</p>
-      <p style="margin: 0;">${senderPostal}</p>
-    </div>
-    
-    <div class="recipient">
-      <p style="margin: 0;">เรียน &nbsp;&nbsp;&nbsp;&nbsp;${recipientTitle}</p>
-      <p style="margin: 10px 0;">${recipientAddress}</p>
-      <p style="margin: 0;">${recipientProvince}</p>
-      <p class="postal">${recipientPostal}</p>
-    </div>
-  </div>
-</body>
-</html>`;
+  const handleDownload = async () => {
+    // 1. Define page layout
+    const orientation = isLandscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT;
 
-    // Create blob with Word document MIME type
-    const blob = new Blob(['\ufeff', htmlContent], {
-      type: 'application/msword'
+    // เตรียม TextRuns สำหรับข้อความตราประทับ (แยกบรรทัด)
+    const stampTextRuns = stampText.split('\n').map((line, index) => 
+      new TextRun({ 
+        text: line, 
+        break: index > 0 ? 1 : 0, 
+        font: SARABUN_FONT, 
+        size: 22 
+      }) // 11pt * 2 = 22 half points
+    );
+
+    // สร้าง array ของ Paragraphs สำหรับข้อมูลผู้ส่ง
+    const senderParagraphs = [
+      documentNumber,
+      senderOrg,
+      senderUniversity,
+      senderAddress1,
+      senderAddress2,
+      senderPostal,
+    ].map(text => 
+      new Paragraph({
+        children: [new TextRun({ text: text, font: SARABUN_FONT, size: 32 })],
+        spacing: { after: 0 }, // ลบช่องว่างระหว่างบรรทัด
+      })
+    );
+
+
+    const doc = new Document({
+        styles: {
+            default: {
+                document: {
+                    run: { font: SARABUN_FONT, size: 32 }, 
+                },
+            },
+        },
+        sections: [{
+            properties: {
+                page: {
+                    size: {
+                        orientation: orientation,
+                    },
+                    margin: { // 2cm margin for A4
+                        top: PAGE_MARGIN_CM,
+                        right: PAGE_MARGIN_CM,
+                        bottom: PAGE_MARGIN_CM,
+                        left: PAGE_MARGIN_CM,
+                    },
+                },
+            },
+            children: [
+                // ------------------------------------
+                // 1. Sender (Left) & Stamp (Right) Section using Table
+                // ------------------------------------
+                new Table({
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    rows: [
+                        new TableRow({
+                            children: [
+                                // Left Cell (Garuda Placeholder, Sender Info)
+                                new TableCell({
+                                    width: { size: 60, type: WidthType.PERCENTAGE },
+                                    verticalAlign: VerticalAlign.TOP,
+                                    children: [
+                                        // Garuda Placeholder (Text placeholder for the image area)
+                                        new Paragraph({
+                                            alignment: AlignmentType.LEFT,
+                                            spacing: { before: 0, after: 0 },
+                                            children: [
+                                                new TextRun({ text: "ตราครุฑ", font: SARABUN_FONT, size: 20 }),
+                                            ],
+                                        }),
+                                        // Simulate the 4cm height of Garuda + spacing
+                                        new Paragraph({
+                                            // 1800 dxa is roughly 3.17cm of space
+                                            spacing: { before: 1800, after: 0 }, 
+                                            children: [],
+                                        }),
+                                        // Sender Info: ใช้ Paragraphs ที่สร้างไว้
+                                        ...senderParagraphs,
+                                    ],
+                                }),
+                                // Right Cell (Stamp Box)
+                                new TableCell({
+                                    width: { size: 40, type: WidthType.PERCENTAGE },
+                                    verticalAlign: VerticalAlign.TOP,
+                                    children: [
+                                        new Paragraph({
+                                            alignment: AlignmentType.CENTER,
+                                            border: { // Border simulation for the stamp box
+                                                top: { style: "single", size: 12, color: "000000" }, 
+                                                right: { style: "single", size: 12, color: "000000" }, 
+                                                bottom: { style: "single", size: 12, color: "000000" }, 
+                                                left: { style: "single", size: 12, color: "000000" } 
+                                            },
+                                            spacing: { before: 100, after: 100 }, // Add small padding inside the border
+                                            children: stampTextRuns,
+                                        }),
+                                    ],
+                                }),
+                            ],
+                        }),
+                    ],
+                }),
+
+                // ------------------------------------
+                // 2. Recipient Section (Center-Right positioning simulation)
+                // ------------------------------------
+                new Paragraph({
+                    // Adjust vertical space to push the recipient block down to the center-right area.
+                    spacing: { 
+                        before: isLandscape ? 3000 : 8000, 
+                        after: 0 
+                    }, 
+                    // Add indentation to push the text to the right side of the page (simulating left: 9cm/13cm)
+                    indent: {
+                        left: isLandscape ? 12000 : 6000, // Landscape 13cm or Portrait 9cm
+                    },
+                    alignment: AlignmentType.LEFT,
+                    children: [
+                        new TextRun({ text: 'เรียน', font: SARABUN_FONT, size: 40 }), // 20pt
+                        new TextRun({ text: `\t\t${recipientTitle}`, font: SARABUN_FONT, size: 40 }),
+                    ],
+                }),
+                new Paragraph({
+                    indent: {
+                        left: isLandscape ? 12000 : 6000,
+                    },
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 200, after: 0 },
+                    children: [
+                        new TextRun({ text: recipientAddress, font: SARABUN_FONT, size: 40 }),
+                    ],
+                }),
+                new Paragraph({
+                    indent: {
+                        left: isLandscape ? 12000 : 6000,
+                    },
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 0, after: 0 },
+                    children: [
+                        new TextRun({ text: recipientProvince, font: SARABUN_FONT, size: 40 }),
+                    ],
+                }),
+                new Paragraph({
+                    indent: {
+                        left: isLandscape ? 12000 : 6000,
+                    },
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 500, after: 0 },
+                    children: [
+                        new TextRun({ text: recipientPostal, font: SARABUN_FONT, size: 48, bold: true }), // 24pt bold
+                    ],
+                }),
+            ],
+        }],
     });
     
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'envelope-label.doc';
-    a.click();
-    URL.revokeObjectURL(url);
+    // 3. Generate and Download
+    // FIX: รับ Buffer (Uint8Array) โดยตรง
+    const buffer = await Packer.toBuffer(doc);
+    
+    // FIX: สร้าง Blob จาก Uint8Array โดยตรง (แก้ปัญหา TypeScript/SharedArrayBuffer)
+    const docxBlob = new Blob([buffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+    });
+    
+    FileSaver.saveAs(docxBlob, 'envelope-label.docx');
   };
 
   return (
