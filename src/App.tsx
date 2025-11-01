@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, RotateCw } from 'lucide-react';
 
 export default function DocumentEditor() {
   const [content, setContent] = useState('Start typing your document here...\n\nYou can write multiple paragraphs and see them formatted in the paper preview on the left.');
+  const [isLandscape, setIsLandscape] = useState(false);
 
   const handleDownload = () => {
     const blob = new Blob([content], { type: 'text/plain' });
@@ -25,10 +26,26 @@ export default function DocumentEditor() {
             <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Document Editor</h1>
           </div>
-          <Button onClick={handleDownload} variant="outline" size="sm">
-            <Download className="w-4 h-4" />
-            Download
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setIsLandscape(!isLandscape)} 
+              variant="outline" 
+              size="sm" 
+              className="!bg-white !text-gray-900 !border-gray-300 hover:!bg-gray-50 dark:!bg-white dark:!text-gray-900 dark:!border-gray-300"
+            >
+              <RotateCw className="w-4 h-4" />
+              {isLandscape ? 'Portrait' : 'Landscape'}
+            </Button>
+            <Button 
+              onClick={handleDownload} 
+              variant="outline" 
+              size="sm"
+              className="!bg-white !text-gray-900 !border-gray-300 hover:!bg-gray-50 dark:!bg-white dark:!text-gray-900 dark:!border-gray-300"
+            >
+              <Download className="w-4 h-4" />
+              Download
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -36,11 +53,15 @@ export default function DocumentEditor() {
           <ResizablePanelGroup direction="horizontal">
             {/* Paper Preview Panel */}
             <ResizablePanel defaultSize={50} minSize={30}>
-              <div className="h-full overflow-auto p-8 bg-gray-100 dark:bg-gray-900">
-                <div className="max-w-3xl mx-auto">
+              <div className="h-full overflow-auto p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+                <div className={`transition-all ${isLandscape ? 'w-full max-w-[95%]' : 'w-full max-w-3xl'}`}>
                   {/* Paper */}
-                  <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-12 min-h-[calc(100vh-8rem)]">
-                    <div className="prose dark:prose-invert max-w-none">
+                  <div className={`bg-white dark:bg-gray-800 shadow-lg rounded-lg p-12 transition-all ${
+                    isLandscape 
+                      ? 'w-full aspect-[1.414/1]' 
+                      : 'w-full aspect-[1/1.414]'
+                  }`}>
+                    <div className="prose dark:prose-invert max-w-none h-full overflow-auto">
                       {content.split('\n').map((line, index) => (
                         <p key={index} className="text-gray-900 dark:text-gray-100 leading-relaxed mb-4">
                           {line || '\u00A0'}
