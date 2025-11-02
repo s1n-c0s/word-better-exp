@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, X } from "lucide-react";
 import jsPDF from "jspdf";
-import { Switch } from "@/components/ui/switch"; // 💡 นำเข้า Switch
-import { Button } from "@/components/ui/button"; // 💡 นำเข้า Button Component
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
@@ -193,6 +193,21 @@ export default function DocumentEditor() {
   };
   // --- สิ้นสุดฟังก์ชัน ---
 
+  // --- ฟังก์ชัน: เคลียร์ข้อมูล ---
+  const clearData = (type: "sender" | "recipient" | "stamp") => {
+    if (type === "sender") {
+      setSenderInput("");
+      parseSenderInput("");
+    } else if (type === "recipient") {
+      setRecipientInput("");
+      parseRecipientInput("");
+    } else if (type === "stamp") {
+      setManualStampInput("");
+      setStampText("");
+    }
+  };
+  // --- สิ้นสุดฟังก์ชัน ---
+
   // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
   useEffect(() => {
     // 1. ข้อมูลผู้ส่ง
@@ -367,12 +382,11 @@ export default function DocumentEditor() {
             <div className="text-xs text-gray-600 dark:text-gray-400 mr-2 hidden sm:block">
               Export: PDF ({recipientsData.length} Pages)
             </div>
-            {/* 💡 ใช้ Button Component สำหรับ Download */}
             <Button
               onClick={handleDownload}
               className="font-bold bg-black text-white hover:bg-blue-700 transition-colors"
-              variant="default" // หรือ 'secondary'
-              size="default" // เพื่อให้ดูเด่น
+              variant="default"
+              size="default"
             >
               <Download className="w-5 h-5" />
               Download PDF
@@ -412,15 +426,28 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
-                  {/* 💡 ใช้ Button Component */}
-                  <Button
-                    onClick={() => fillExampleData("sender")}
-                    variant="outline"
-                    size="sm"
-                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
-                  >
-                    กรอกข้อมูลตัวอย่าง
-                  </Button>
+                  <div className="flex gap-1">
+                    {" "}
+                    {/* จัดกลุ่มปุ่ม */}
+                    <Button
+                      onClick={() => fillExampleData("sender")}
+                      variant="outline"
+                      size="sm"
+                      className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                    >
+                      กรอกข้อมูลตัวอย่าง
+                    </Button>
+                    {/* ปุ่มเคลียร์ข้อมูล (Icon-only) */}
+                    <Button
+                      onClick={() => clearData("sender")}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="เคลียร์ข้อมูลผู้ส่ง"
+                    >
+                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 <textarea
                   value={senderInput}
@@ -442,15 +469,28 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                   </h2>
-                  {/* 💡 ใช้ Button Component */}
-                  <Button
-                    onClick={() => fillExampleData("recipient")}
-                    variant="outline"
-                    size="sm"
-                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
-                  >
-                    กรอกข้อมูลตัวอย่าง
-                  </Button>
+                  <div className="flex gap-1">
+                    {" "}
+                    {/* จัดกลุ่มปุ่ม */}
+                    <Button
+                      onClick={() => fillExampleData("recipient")}
+                      variant="outline"
+                      size="sm"
+                      className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                    >
+                      กรอกข้อมูลตัวอย่าง
+                    </Button>
+                    {/* ปุ่มเคลียร์ข้อมูล (Icon-only) */}
+                    <Button
+                      onClick={() => clearData("recipient")}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="เคลียร์ข้อมูลผู้รับ"
+                    >
+                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
@@ -480,15 +520,28 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 border-b border-purple-100 pb-1">
                     ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                   </h2>
-                  {/* 💡 ใช้ Button Component */}
-                  <Button
-                    onClick={() => fillExampleData("stamp")}
-                    variant="outline"
-                    size="sm"
-                    className="text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-200 transition-colors"
-                  >
-                    ใช้ข้อความเริ่มต้น
-                  </Button>
+                  <div className="flex gap-1">
+                    {" "}
+                    {/* จัดกลุ่มปุ่ม */}
+                    <Button
+                      onClick={() => fillExampleData("stamp")}
+                      variant="outline"
+                      size="sm"
+                      className="text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-200 transition-colors"
+                    >
+                      ใช้ข้อความเริ่มต้น
+                    </Button>
+                    {/* ปุ่มเคลียร์ข้อมูล (Icon-only) */}
+                    <Button
+                      onClick={() => clearData("stamp")}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="เคลียร์ข้อความตราประทับ"
+                    >
+                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* 💡 Switch Component Area - พื้นหลังสีม่วงอ่อน */}
