@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Download, FileText, RotateCw } from "lucide-react";
 import jsPDF from "jspdf";
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
@@ -7,13 +7,12 @@ import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
-
-// Base64 Placeholder สำหรับตราครุฑ
-const GARUDA_EMBLEM_WIDTH = 15; // mm (ขนาดครุฑ)
-const GARUDA_EMBLEM_HEIGHT = 15; // mm
+const GARUDA_EMBLEM_WIDTH = 15;
+const GARUDA_EMBLEM_HEIGHT = 15;
 
 export default function DocumentEditor() {
   const [isLandscape, setIsLandscape] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState("");
 
   // ข้อมูลผู้ส่ง/ผู้รับ
   const [documentNumber, setDocumentNumber] = useState(
@@ -45,7 +44,8 @@ export default function DocumentEditor() {
     "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ ๘๕/๒๕๒๑\nพิษณุโลก"
   );
 
-  const handleDownload = async () => {
+  // ฟังก์ชันสร้าง PDF และคืนค่า Data URI string (สำหรับ Preview และ Download)
+  const generatePdfDataUri = useCallback(() => {
     const pdf = new jsPDF({
       orientation: isLandscape ? "landscape" : "portrait",
       unit: "mm",
@@ -54,22 +54,20 @@ export default function DocumentEditor() {
 
     const pageWidth = isLandscape ? 297 : 210;
     const pageHeight = isLandscape ? 210 : 297;
-    const margin = 20; // 2cm margin
+    const margin = 20;
 
-    // ตั้งค่าฟอนต์เริ่มต้นให้เป็น TH Sarabun New (normal)
     pdf.setFont(SARABUN_FONT, "normal");
 
     // --- 1. ตราครุฑ
     const emblemX = margin + 15;
     const emblemY = margin + 15;
-    pdf.circle(emblemX, emblemY, 7);
+    // pdf.circle(emblemX, emblemY, 7);
 
     // --- 2. ที่อยู่ผู้ส่ง (18px)
     const senderX = margin;
-    let senderY = margin + 45;
+    let senderY = margin + 40;
     const lineSpacing = 8;
 
-    // ตั้งค่าขนาดฟอนต์ 18px สำหรับผู้ส่ง
     pdf.setFontSize(18);
 
     // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
@@ -91,26 +89,53 @@ export default function DocumentEditor() {
       senderY += lineSpacing;
     });
 
-    // --- 3. ตราประทับ (Stamp Box)
-    const stampWidth = 60;
-    const stampHeight = 30;
-    const stampX = pageWidth - margin - stampWidth;
-    const stampY = margin;
+    // --- 3. ตราประทับ (Stamp Box - ปรับขนาดให้พอดีกับเนื้อหา)
 
-    pdf.rect(stampX, stampY, stampWidth, stampHeight);
-
-    pdf.setFontSize(11);
+    // ตั้งค่าฟอนต์ 14px ก่อนคำนวณ
+    pdf.setFontSize(14);
     const stampLines = stampText.split("\n");
-    let stampTextY = stampY + 8;
+
+    const paddingX = 3;
+    const paddingY = 1.0; // 💡 ปรับลดขอบแนวตั้งให้ชิดที่สุด (1.0mm)
+    const stampLineSpacing = 7;
+
+    // 1. หาความกว้างสูงสุดของข้อความทั้งหมด
+    let maxWidth = 0;
     stampLines.forEach((line) => {
-      const textWidth = pdf.getTextWidth(line);
-      pdf.text(line, stampX + (stampWidth - textWidth) / 2, stampTextY);
-      stampTextY += 6;
+      const width = pdf.getTextWidth(line);
+      if (width > maxWidth) {
+        maxWidth = width;
+      }
     });
 
-    // --- 4. ผู้รับ (26px, Bold ทั้งหมด) ---
+    // 2. คำนวณความกว้างและความสูงของกล่อง
+    const stampWidth = maxWidth + paddingX * 2;
+    const stampHeight = stampLines.length * stampLineSpacing + paddingY * 2;
 
-    // 💡 การแก้ไข 1: เลื่อนบล็อกทั้งหมดไปทางซ้ายมากขึ้น (จาก 45% เป็น 30%)
+    // 3. คำนวณตำแหน่ง X และ Y
+    const moveUpOffset = 5;
+    const stampX = pageWidth - margin - stampWidth;
+    const stampY = margin - moveUpOffset; // ตำแหน่ง Y ใหม่ของกล่อง
+
+    // 4. คำนวณจุดเริ่มต้น Y ของข้อความเพื่อให้จัดกึ่งกลางแนวตั้งพอดี
+    // 💡 ปรับ Text Offset ลงเล็กน้อยเพื่อดึงข้อความให้ชิดขอบล่างมากขึ้น
+    const textStartOffset = 3.5;
+    let currentY = stampY + paddingY + textStartOffset;
+
+    // วาดกรอบสี่เหลี่ยม
+    pdf.rect(stampX, stampY, stampWidth, stampHeight);
+
+    // พิมพ์ข้อความแต่ละบรรทัด (อยู่กึ่งกลางกล่อง)
+    stampLines.forEach((line) => {
+      const textWidth = pdf.getTextWidth(line);
+
+      // จัดให้อยู่กึ่งกลางแนวนอน
+      pdf.text(line, stampX + (stampWidth - textWidth) / 2, currentY);
+      currentY += stampLineSpacing;
+    });
+
+    // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
+
     const recipientBaseX = pageWidth * 0.3;
     const recipientBaseY = pageHeight * 0.55;
     const recipientLineSpacing = 12;
@@ -120,36 +145,58 @@ export default function DocumentEditor() {
 
     const recipientLabel = "เรียน";
 
-    // 💡 การแก้ไข 2a: พิมพ์ "เรียน" ที่จุดเริ่มต้น (คอลัมน์ซ้าย)
     pdf.text(recipientLabel, recipientBaseX, recipientBaseY);
 
-    // 💡 การแก้ไข 2b: คำนวณจุดเริ่มต้นสำหรับคอลัมน์รายละเอียด
     const labelWidth = pdf.getTextWidth(recipientLabel);
-    const detailGap = 8; // ระยะห่าง 8mm
+    const detailGap = 8;
     const recipientDetailX = recipientBaseX + labelWidth + detailGap;
 
-    // บรรทัดที่ 1: ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม (คอลัมน์ขวา)
     pdf.text(recipientTitle, recipientDetailX, recipientBaseY);
-
-    // บรรทัดที่ 2: ที่อยู่ (คอลัมน์ขวา)
     pdf.text(
       recipientAddress,
       recipientDetailX,
       recipientBaseY + recipientLineSpacing
     );
-
-    // บรรทัดที่ 3: จังหวัด (คอลัมน์ขวา)
     pdf.text(
       recipientProvince,
       recipientDetailX,
       recipientBaseY + recipientLineSpacing * 2
     );
-
-    // บรรทัดที่ 4: รหัสไปรษณีย์ (คอลัมน์ขวา)
     pdf.text(recipientPostal, recipientDetailX, recipientBaseY + 39);
 
-    // Save PDF
-    pdf.save("envelope-label.pdf");
+    // คืนค่า Data URI String
+    return pdf.output("datauristring");
+  }, [
+    isLandscape,
+    documentNumber,
+    senderOrg,
+    senderUniversity,
+    senderAddress1,
+    senderAddress2,
+    senderPostal,
+    recipientTitle,
+    recipientAddress,
+    recipientProvince,
+    recipientPostal,
+    stampText,
+  ]);
+
+  // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
+  useEffect(() => {
+    const dataUri = generatePdfDataUri();
+    setPdfUrl(dataUri);
+  }, [generatePdfDataUri]);
+
+  // ฟังก์ชันสำหรับ Download PDF จริงๆ
+  const handleDownload = () => {
+    const pdfDataUri = generatePdfDataUri();
+    // ใช้ Data URI ในการสร้างลิงก์ดาวน์โหลด
+    const a = document.createElement("a");
+    a.href = pdfDataUri;
+    a.download = "envelope-label.pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
@@ -184,112 +231,33 @@ export default function DocumentEditor() {
           </div>
         </div>
 
-        {/* Main Content: ใช้ JSX เดิม */}
+        {/* --- Main Content: ส่วน Preview PDF (ใช้ iframe) --- */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* Paper Preview Panel */}
           <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
             <div
-              className={`transition-all ${
-                isLandscape ? "w-full max-w-[95%]" : "w-full max-w-3xl"
-              }`}
+              className={`transition-all bg-white shadow-lg ${
+                isLandscape
+                  ? "w-full max-w-[95%] aspect-[1.414/1]"
+                  : "w-full max-w-3xl aspect-[1/1.414]"
+              } p-2`}
             >
-              {/* A4 Paper */}
-              <div
-                className={`bg-white dark:bg-gray-800 shadow-lg transition-all relative ${
-                  isLandscape
-                    ? "w-full aspect-[1.414/1]"
-                    : "w-full aspect-[1/1.414]"
-                } p-8 lg:p-12`}
-              >
-                {/* Thai Garuda Emblem - Top Left */}
-                <div className="absolute top-4 lg:top-8 left-12 lg:left-20 w-12 lg:w-16 h-16 lg:h-20">
-                  <svg viewBox="0 0 100 120" className="w-full h-full">
-                    <circle
-                      cx="50"
-                      cy="40"
-                      r="15"
-                      fill="none"
-                      stroke="black"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M35 50 L50 70 L65 50 Z"
-                      fill="none"
-                      stroke="black"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M30 60 L35 80 L50 75 L65 80 L70 60"
-                      fill="none"
-                      stroke="black"
-                      strokeWidth="2"
-                    />
-                    <text
-                      x="50"
-                      y="100"
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill="black"
-                    >
-                      ตรา
-                    </text>
-                  </svg>
+              {/* ใช้ Data URI ใน src ของ iframe */}
+              {pdfUrl ? (
+                <iframe
+                  title="PDF Preview"
+                  src={pdfUrl}
+                  className="w-full h-full border-none"
+                  type="application/pdf"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  กำลังโหลด PDF Preview...
                 </div>
-
-                {/* Stamp Box - Top Right */}
-                <div className="absolute top-4 lg:top-8 right-4 lg:right-12 border-2 border-black p-2 text-center min-w-[140px] lg:min-w-[180px]">
-                  <div className="text-[10px] lg:text-xs leading-relaxed whitespace-pre-line text-gray-900">
-                    {stampText}
-                  </div>
-                </div>
-
-                {/* Sender Info - Top Left under emblem */}
-                <div className="absolute top-32 lg:top-40 left-4 lg:left-12 text-left max-w-[45%]">
-                  <div className="space-y-0.5 lg:space-y-1 text-gray-900 dark:text-gray-100">
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {documentNumber}
-                    </div>
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {senderOrg}
-                    </div>
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {senderUniversity}
-                    </div>
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {senderAddress1}
-                    </div>
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {senderAddress2}
-                    </div>
-                    <div className="font-normal text-xs lg:text-base leading-relaxed">
-                      {senderPostal}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recipient Section - Center Right */}
-                <div className="absolute top-1/2 left-[45%] -translate-y-1/2 text-left min-w-[280px] lg:min-w-[400px]">
-                  <div className="space-y-2 lg:space-y-3 text-gray-900 dark:text-gray-100">
-                    <div className="text-base lg:text-xl font-normal mb-2 lg:mb-4">
-                      เรียน{" "}
-                      <span className="ml-2 lg:ml-4">{recipientTitle}</span>
-                    </div>
-                    <div className="text-base lg:text-xl font-normal leading-relaxed text-left">
-                      {recipientAddress}
-                    </div>
-                    <div className="text-base lg:text-xl font-normal leading-relaxed text-left">
-                      {recipientProvince}
-                    </div>
-                    <div className="text-base lg:text-xl font-bold leading-relaxed text-left mt-2 lg:mt-4">
-                      {recipientPostal}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Input Form Panel */}
+          {/* Input Form Panel (มีส่วน Preview JSX อยู่ด้านใน) */}
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-4 lg:p-6">
               <div className="max-w-xl mx-auto space-y-4 lg:space-y-6">
@@ -375,6 +343,36 @@ export default function DocumentEditor() {
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
+
+                  {/* --- JSX Preview: Sender Info --- */}
+                  <div className="mt-4 p-3 border border-dashed border-gray-400 rounded-md">
+                    <p className="text-sm font-semibold text-gray-700 mb-1">
+                      Preview (18px)
+                    </p>
+
+                    <div className="space-y-0.5 text-gray-900 text-base">
+                      {/* บรรทัดที่ 1: Bold ทั้งบรรทัด */}
+                      <div className="font-extrabold text-lg leading-tight">
+                        {documentNumber}
+                      </div>
+                      {/* บรรทัดอื่น ๆ: Normal */}
+                      <div className="font-normal text-lg leading-tight">
+                        {senderOrg}
+                      </div>
+                      <div className="font-normal text-lg leading-tight">
+                        {senderUniversity}
+                      </div>
+                      <div className="font-normal text-lg leading-tight">
+                        {senderAddress1}
+                      </div>
+                      <div className="font-normal text-lg leading-tight">
+                        {senderAddress2}
+                      </div>
+                      <div className="font-normal text-lg leading-tight">
+                        {senderPostal}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Recipient Section */}
@@ -431,6 +429,26 @@ export default function DocumentEditor() {
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
+
+                  {/* --- JSX Preview: Recipient Info --- */}
+                  <div className="mt-4 p-3 border border-dashed border-gray-400 rounded-md">
+                    <p className="text-sm font-semibold text-gray-700 mb-1">
+                      Preview (26px Bold)
+                    </p>
+
+                    {/* จำลองการจัดคอลัมน์ "เรียน" | [รายละเอียด] */}
+                    <div className="flex space-x-3 text-gray-900 font-extrabold text-2xl">
+                      <div className="flex-shrink-0">เรียน</div>
+                      <div className="flex-grow space-y-2">
+                        <div className="leading-tight">{recipientTitle}</div>
+                        <div className="leading-tight">{recipientAddress}</div>
+                        <div className="leading-tight">{recipientProvince}</div>
+                        <div className="font-extrabold leading-tight pt-2">
+                          {recipientPostal}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Stamp Section */}
@@ -449,6 +467,16 @@ export default function DocumentEditor() {
                       rows={3}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
+                  </div>
+
+                  {/* --- JSX Preview: Stamp Info --- */}
+                  <div className="mt-4 p-3 border border-dashed border-gray-400 rounded-md text-center">
+                    <p className="text-sm font-semibold text-gray-700 mb-1">
+                      Preview (14px)
+                    </p>
+                    <p className="text-base whitespace-pre-line leading-snug">
+                      {stampText}
+                    </p>
                   </div>
                 </div>
 
