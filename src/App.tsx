@@ -1,211 +1,131 @@
-import { useState } from 'react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Button } from '@/components/ui/button';
-import { Download, FileText, RotateCw } from 'lucide-react';
-// Import docx components และ file-saver
-import { 
-  Document, 
-  Packer, 
-  Paragraph, 
-  TextRun, 
-  PageOrientation, 
-  WidthType, 
-  AlignmentType, 
-  Table, 
-  TableRow, 
-  TableCell, 
-  VerticalAlign 
-} from 'docx'; 
-import * as FileSaver from 'file-saver'; 
+import { useState } from "react";
+import { Download, FileText, RotateCw } from "lucide-react";
+import jsPDF from "jspdf";
+// 💡 การแก้ไข 1: นำเข้าไฟล์ฟอนต์ที่แปลงแล้ว
+// ตรวจสอบให้แน่ใจว่าพาธไฟล์ถูกต้อง (สมมติว่าไฟล์อยู่ในโฟลเดอร์เดียวกัน)
+import "./fonts/thsarabunnew-normal.js";
+import "./fonts/thsarabunnew-bold.js";
 
-const SARABUN_FONT = 'Sarabun';
-const PAGE_MARGIN_CM = 2 * 567; // 2cm ในหน่วย Dxa (Word Unit: 1cm = 567 dxa)
+// TH Sarabun New font will be embedded
+// 💡 การแก้ไข 2: กำหนดชื่อฟอนต์ (ต้องตรงกับชื่อที่ใช้ในการแปลง)
+const SARABUN_FONT = "THSarabunNew";
 
 export default function DocumentEditor() {
   const [isLandscape, setIsLandscape] = useState(true);
-  
+
   // Sender info (top left)
-  const [documentNumber, setDocumentNumber] = useState('ที่ อว 0603.32.01/ว 249');
-  const [senderOrg, setSenderOrg] = useState('วิทยาลัยเพื่อการคุ้มครองระดับราชฐาน');
-  const [senderUniversity, setSenderUniversity] = useState('มหาวิทยาลัยนเรศวร');
-  const [senderAddress1, setSenderAddress1] = useState('เลขที่ 99 หมู่ที่ 9 ตำบลท่าโพธิ์');
-  const [senderAddress2, setSenderAddress2] = useState('อำเภอเมือง จังหวัดพิษณุโลก');
-  const [senderPostal, setSenderPostal] = useState('65000');
-  
+  const [documentNumber, setDocumentNumber] = useState(
+    "ที่ อว 0603.32.01/ว 249"
+  );
+  const [senderOrg, setSenderOrg] = useState(
+    "วิทยาลัยเพื่อการคุ้มครองระดับราชฐาน"
+  );
+  const [senderUniversity, setSenderUniversity] = useState("มหาวิทยาลัยนเรศวร");
+  const [senderAddress1, setSenderAddress1] = useState(
+    "เลขที่ 99 หมู่ที่ 9 ตำบลท่าโพธิ์"
+  );
+  const [senderAddress2, setSenderAddress2] = useState(
+    "อำเภอเมือง จังหวัดพิษณุโลก"
+  );
+  const [senderPostal, setSenderPostal] = useState("65000");
+
   // Recipient info (center)
-  const [recipientTitle, setRecipientTitle] = useState('ผู้อำนายการโรงเรียนอุทัยธานีวิทยาคม');
-  const [recipientAddress, setRecipientAddress] = useState('55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง');
-  const [recipientProvince, setRecipientProvince] = useState('จังหวัดอุทัยธานี');
-  const [recipientPostal, setRecipientPostal] = useState('61000');
-  
+  const [recipientTitle, setRecipientTitle] = useState(
+    "ผู้อำนายการโรงเรียนอุทัยธานีวิทยาคม"
+  );
+  const [recipientAddress, setRecipientAddress] = useState(
+    "55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง"
+  );
+  const [recipientProvince, setRecipientProvince] =
+    useState("จังหวัดอุทัยธานี");
+  const [recipientPostal, setRecipientPostal] = useState("61000");
+
   // Stamp info (top right)
-  const [stampText, setStampText] = useState('ชำระค่าฝากส่งเป็นรายเดือน\nในอนุญาตเลขที่ ๕๕/๒๕๒๓\nพิษณุโลก');
+  const [stampText, setStampText] = useState(
+    "ชำระค่าฝากส่งเป็นรายเดือน\nในอนุญาตเลขที่ ๕๕/๒๕๒๓\nพิษณุโลก"
+  );
 
   const handleDownload = async () => {
-    // 1. Define page layout
-    const orientation = isLandscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT;
+    // Create PDF with A4 size
+    const pdf = new jsPDF({
+      orientation: isLandscape ? "landscape" : "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
-    // เตรียม TextRuns สำหรับข้อความตราประทับ (แยกบรรทัด)
-    const stampTextRuns = stampText.split('\n').map((line, index) => 
-      new TextRun({ 
-        text: line, 
-        break: index > 0 ? 1 : 0, 
-        font: SARABUN_FONT, 
-        size: 22 
-      }) // 11pt * 2 = 22 half points
-    );
+    // A4 dimensions: 210mm x 297mm (portrait), 297mm x 210mm (landscape)
+    const pageWidth = isLandscape ? 297 : 210;
+    const pageHeight = isLandscape ? 210 : 297;
+    const margin = 20; // 2cm margin
 
-    // สร้าง array ของ Paragraphs สำหรับข้อมูลผู้ส่ง
-    const senderParagraphs = [
+    // 💡 การแก้ไข 3: ตั้งค่าฟอนต์เริ่มต้นให้เป็น TH Sarabun New
+    pdf.setFont(SARABUN_FONT, "normal");
+
+    // Draw Garuda Emblem placeholder (top left)
+    pdf.setFontSize(8);
+    // pdf.text("[ตราครุฑ]", margin, margin + 5); // ลบออกตามการปรับแก้ก่อนหน้า
+
+    // Draw circle for Garuda
+    pdf.circle(margin + 8, margin + 15, 5);
+
+    // Sender Info (top left, below emblem)
+    const senderX = margin;
+    let senderY = margin + 35;
+    const senderLines = [
       documentNumber,
       senderOrg,
       senderUniversity,
       senderAddress1,
       senderAddress2,
       senderPostal,
-    ].map(text => 
-      new Paragraph({
-        children: [new TextRun({ text: text, font: SARABUN_FONT, size: 32 })],
-        spacing: { after: 0 }, // ลบช่องว่างระหว่างบรรทัด
-      })
-    );
+    ];
 
-
-    const doc = new Document({
-        styles: {
-            default: {
-                document: {
-                    run: { font: SARABUN_FONT, size: 32 }, 
-                },
-            },
-        },
-        sections: [{
-            properties: {
-                page: {
-                    size: {
-                        orientation: orientation,
-                    },
-                    margin: { // 2cm margin for A4
-                        top: PAGE_MARGIN_CM,
-                        right: PAGE_MARGIN_CM,
-                        bottom: PAGE_MARGIN_CM,
-                        left: PAGE_MARGIN_CM,
-                    },
-                },
-            },
-            children: [
-                // ------------------------------------
-                // 1. Sender (Left) & Stamp (Right) Section using Table
-                // ------------------------------------
-                new Table({
-                    width: { size: 100, type: WidthType.PERCENTAGE },
-                    rows: [
-                        new TableRow({
-                            children: [
-                                // Left Cell (Garuda Placeholder, Sender Info)
-                                new TableCell({
-                                    width: { size: 60, type: WidthType.PERCENTAGE },
-                                    verticalAlign: VerticalAlign.TOP,
-                                    children: [
-                                        // Garuda Placeholder (Text placeholder for the image area)
-                                        new Paragraph({
-                                            alignment: AlignmentType.LEFT,
-                                            spacing: { before: 0, after: 0 },
-                                            children: [
-                                                new TextRun({ text: "ตราครุฑ", font: SARABUN_FONT, size: 20 }),
-                                            ],
-                                        }),
-                                        // Simulate the 4cm height of Garuda + spacing
-                                        new Paragraph({
-                                            // 1800 dxa is roughly 3.17cm of space
-                                            spacing: { before: 1800, after: 0 }, 
-                                            children: [],
-                                        }),
-                                        // Sender Info: ใช้ Paragraphs ที่สร้างไว้
-                                        ...senderParagraphs,
-                                    ],
-                                }),
-                                // Right Cell (Stamp Box)
-                                new TableCell({
-                                    width: { size: 40, type: WidthType.PERCENTAGE },
-                                    verticalAlign: VerticalAlign.TOP,
-                                    children: [
-                                        new Paragraph({
-                                            alignment: AlignmentType.CENTER,
-                                            border: { // Border simulation for the stamp box
-                                                top: { style: "single", size: 12, color: "000000" }, 
-                                                right: { style: "single", size: 12, color: "000000" }, 
-                                                bottom: { style: "single", size: 12, color: "000000" }, 
-                                                left: { style: "single", size: 12, color: "000000" } 
-                                            },
-                                            spacing: { before: 100, after: 100 }, // Add small padding inside the border
-                                            children: stampTextRuns,
-                                        }),
-                                    ],
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
-
-                // ------------------------------------
-                // 2. Recipient Section (Center-Right positioning simulation)
-                // ------------------------------------
-                new Paragraph({
-                    // Adjust vertical space to push the recipient block down to the center-right area.
-                    spacing: { 
-                        before: isLandscape ? 3000 : 8000, 
-                        after: 0 
-                    }, 
-                    // Add indentation to push the text to the right side of the page (simulating left: 9cm/13cm)
-                    indent: {
-                        left: isLandscape ? 12000 : 6000, // Landscape 13cm or Portrait 9cm
-                    },
-                    alignment: AlignmentType.LEFT,
-                    children: [
-                        new TextRun({ text: 'เรียน', font: SARABUN_FONT, size: 40 }), // 20pt
-                        new TextRun({ text: `\t\t${recipientTitle}`, font: SARABUN_FONT, size: 40 }),
-                    ],
-                }),
-                new Paragraph({
-                    indent: {
-                        left: isLandscape ? 12000 : 6000,
-                    },
-                    alignment: AlignmentType.LEFT,
-                    spacing: { before: 200, after: 0 },
-                    children: [
-                        new TextRun({ text: recipientAddress, font: SARABUN_FONT, size: 40 }),
-                    ],
-                }),
-                new Paragraph({
-                    indent: {
-                        left: isLandscape ? 12000 : 6000,
-                    },
-                    alignment: AlignmentType.LEFT,
-                    spacing: { before: 0, after: 0 },
-                    children: [
-                        new TextRun({ text: recipientProvince, font: SARABUN_FONT, size: 40 }),
-                    ],
-                }),
-                new Paragraph({
-                    indent: {
-                        left: isLandscape ? 12000 : 6000,
-                    },
-                    alignment: AlignmentType.LEFT,
-                    spacing: { before: 500, after: 0 },
-                    children: [
-                        new TextRun({ text: recipientPostal, font: SARABUN_FONT, size: 48, bold: true }), // 24pt bold
-                    ],
-                }),
-            ],
-        }],
+    pdf.setFontSize(16);
+    senderLines.forEach((line) => {
+      pdf.text(line, senderX, senderY);
+      senderY += 7;
     });
-    
-    // 3. Generate and Download
-    // FIX: ใช้ Packer.toBlob(doc) เพื่อหลีกเลี่ยงปัญหา Buffer Type Mismatch
-    const docxBlob = await Packer.toBlob(doc);
-    
-    FileSaver.saveAs(docxBlob, 'envelope-label.docx');
+
+    // Stamp Box (top right)
+    const stampWidth = 60;
+    const stampHeight = 30;
+    const stampX = pageWidth - margin - stampWidth;
+    const stampY = margin;
+
+    pdf.rect(stampX, stampY, stampWidth, stampHeight);
+
+    pdf.setFontSize(11);
+    const stampLines = stampText.split("\n");
+    let stampTextY = stampY + 8;
+    stampLines.forEach((line) => {
+      const textWidth = pdf.getTextWidth(line);
+      pdf.text(line, stampX + (stampWidth - textWidth) / 2, stampTextY);
+      stampTextY += 6;
+    });
+
+    // Recipient Section (center-right)
+    const recipientX = isLandscape ? pageWidth * 0.55 : pageWidth * 0.45;
+    const recipientY = pageHeight / 2 - 20;
+
+    pdf.setFontSize(20);
+    // 💡 ฟอนต์ปกติสำหรับข้อความ "เรียน" และชื่อ/ที่อยู่ผู้รับ
+    pdf.setFont(SARABUN_FONT, "normal");
+
+    const recipientLabel = "เรียน";
+    const recipientLabelWidth = pdf.getTextWidth(recipientLabel);
+    pdf.text(recipientLabel, recipientX, recipientY);
+    pdf.text(recipientTitle, recipientX + recipientLabelWidth + 10, recipientY);
+
+    pdf.text(recipientAddress, recipientX, recipientY + 10);
+    pdf.text(recipientProvince, recipientX, recipientY + 20);
+
+    // 💡 การแก้ไข 4: ตั้งค่าฟอนต์เป็น 'bold' สำหรับรหัสไปรษณีย์ 61000
+    pdf.setFont(SARABUN_FONT, "bold");
+    pdf.setFontSize(24);
+    pdf.text(recipientPostal, recipientX, recipientY + 35);
+
+    // Save PDF
+    pdf.save("envelope-label.pdf");
   };
 
   return (
@@ -215,256 +135,311 @@ export default function DocumentEditor() {
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Thai Official Envelope Label Editor</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Thai Official Envelope Label Editor
+            </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => setIsLandscape(!isLandscape)} 
-              variant="outline" 
-              size="sm" 
-              className="!bg-white !text-gray-900 !border-gray-300 hover:!bg-gray-50 dark:!bg-white dark:!text-gray-900 dark:!border-gray-300"
+            <div className="text-xs text-gray-600 dark:text-gray-400 mr-2 hidden sm:block">
+              Export: PDF
+            </div>
+            <button
+              onClick={() => setIsLandscape(!isLandscape)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
             >
               <RotateCw className="w-4 h-4" />
-              {isLandscape ? 'Portrait' : 'Landscape'}
-            </Button>
-            <Button 
-              onClick={handleDownload} 
-              variant="outline" 
-              size="sm"
-              className="!bg-white !text-gray-900 !border-gray-300 hover:!bg-gray-50 dark:!bg-white dark:!text-gray-900 dark:!border-gray-300"
+              {isLandscape ? "Portrait" : "Landscape"}
+            </button>
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               <Download className="w-4 h-4" />
-              Download
-            </Button>
+              Download PDF
+            </button>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-hidden">
-          <ResizablePanelGroup direction="horizontal">
-            {/* Paper Preview Panel */}
-            <ResizablePanel defaultSize={60} minSize={40}>
-              <div className="h-full overflow-auto p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-                <div className={`transition-all ${isLandscape ? 'w-full max-w-[95%]' : 'w-full max-w-3xl'}`}>
-                  {/* A4 Paper */}
-                  <div className={`bg-white dark:bg-gray-800 shadow-lg transition-all relative ${
-                    isLandscape 
-                      ? 'w-full aspect-[1.414/1]' 
-                      : 'w-full aspect-[1/1.414]'
-                  } p-12`}>
-                    
-                    {/* Thai Garuda Emblem - Top Left */}
-                    <div className="absolute top-8 left-12 w-16 h-20">
-                      <svg viewBox="0 0 100 120" className="w-full h-full">
-                        <circle cx="50" cy="40" r="15" fill="none" stroke="black" strokeWidth="2"/>
-                        <path d="M35 50 L50 70 L65 50 Z" fill="none" stroke="black" strokeWidth="2"/>
-                        <path d="M30 60 L35 80 L50 75 L65 80 L70 60" fill="none" stroke="black" strokeWidth="2"/>
-                        <text x="50" y="100" textAnchor="middle" fontSize="12" fill="black">ตรา</text>
-                      </svg>
-                    </div>
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          {/* Paper Preview Panel */}
+          <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+            <div
+              className={`transition-all ${
+                isLandscape ? "w-full max-w-[95%]" : "w-full max-w-3xl"
+              }`}
+            >
+              {/* A4 Paper */}
+              <div
+                className={`bg-white dark:bg-gray-800 shadow-lg transition-all relative ${
+                  isLandscape
+                    ? "w-full aspect-[1.414/1]"
+                    : "w-full aspect-[1/1.414]"
+                } p-8 lg:p-12`}
+              >
+                {/* Thai Garuda Emblem - Top Left */}
+                <div className="absolute top-4 lg:top-8 left-4 lg:left-12 w-12 lg:w-16 h-16 lg:h-20">
+                  <svg viewBox="0 0 100 120" className="w-full h-full">
+                    <circle
+                      cx="50"
+                      cy="40"
+                      r="15"
+                      fill="none"
+                      stroke="black"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M35 50 L50 70 L65 50 Z"
+                      fill="none"
+                      stroke="black"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M30 60 L35 80 L50 75 L65 80 L70 60"
+                      fill="none"
+                      stroke="black"
+                      strokeWidth="2"
+                    />
+                    <text
+                      x="50"
+                      y="100"
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="black"
+                    >
+                      ตรา
+                    </text>
+                  </svg>
+                </div>
 
-                    {/* Stamp Box - Top Right */}
-                    <div className="absolute top-8 right-12 border-2 border-black p-2 text-center" style={{minWidth: '180px'}}>
-                      <div className="text-xs leading-relaxed whitespace-pre-line text-gray-900">
-                        {stampText}
-                      </div>
-                    </div>
+                {/* Stamp Box - Top Right */}
+                <div className="absolute top-4 lg:top-8 right-4 lg:right-12 border-2 border-black p-2 text-center min-w-[140px] lg:min-w-[180px]">
+                  <div className="text-[10px] lg:text-xs leading-relaxed whitespace-pre-line text-gray-900">
+                    {stampText}
+                  </div>
+                </div>
 
-                    {/* Sender Info - Top Left under emblem */}
-                    <div className="absolute top-32 left-12 text-left" style={{maxWidth: '45%'}}>
-                      <div className="space-y-1 text-gray-900 dark:text-gray-100">
-                        <div className="font-normal text-base leading-relaxed">{documentNumber}</div>
-                        <div className="font-normal text-base leading-relaxed">{senderOrg}</div>
-                        <div className="font-normal text-base leading-relaxed">{senderUniversity}</div>
-                        <div className="font-normal text-base leading-relaxed">{senderAddress1}</div>
-                        <div className="font-normal text-base leading-relaxed">{senderAddress2}</div>
-                        <div className="font-normal text-base leading-relaxed">{senderPostal}</div>
-                      </div>
+                {/* Sender Info - Top Left under emblem */}
+                <div className="absolute top-24 lg:top-32 left-4 lg:left-12 text-left max-w-[45%]">
+                  <div className="space-y-0.5 lg:space-y-1 text-gray-900 dark:text-gray-100">
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {documentNumber}
                     </div>
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {senderOrg}
+                    </div>
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {senderUniversity}
+                    </div>
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {senderAddress1}
+                    </div>
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {senderAddress2}
+                    </div>
+                    <div className="font-normal text-xs lg:text-base leading-relaxed">
+                      {senderPostal}
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Recipient Section - Center Right */}
-                    <div className="absolute top-1/2 left-1/2 -translate-y-1/2 text-center" style={{minWidth: '400px'}}>
-                      <div className="space-y-3 text-gray-900 dark:text-gray-100">
-                        <div className="text-xl font-normal mb-4">
-                          เรียน <span className="ml-4">{recipientTitle}</span>
-                        </div>
-                        <div className="text-xl font-normal leading-relaxed text-center">
-                          {recipientAddress}
-                        </div>
-                        <div className="text-xl font-normal leading-relaxed text-center">
-                          {recipientProvince}
-                        </div>
-                        <div className="text-xl font-bold leading-relaxed text-center mt-4">
-                          {recipientPostal}
-                        </div>
-                      </div>
+                {/* Recipient Section - Center Right */}
+                <div className="absolute top-1/2 left-1/2 -translate-y-1/2 text-center min-w-[280px] lg:min-w-[400px]">
+                  <div className="space-y-2 lg:space-y-3 text-gray-900 dark:text-gray-100">
+                    <div className="text-base lg:text-xl font-normal mb-2 lg:mb-4">
+                      เรียน{" "}
+                      <span className="ml-2 lg:ml-4">{recipientTitle}</span>
+                    </div>
+                    <div className="text-base lg:text-xl font-normal leading-relaxed text-center">
+                      {recipientAddress}
+                    </div>
+                    <div className="text-base lg:text-xl font-normal leading-relaxed text-center">
+                      {recipientProvince}
+                    </div>
+                    <div className="text-base lg:text-xl font-bold leading-relaxed text-center mt-2 lg:mt-4">
+                      {recipientPostal}
                     </div>
                   </div>
                 </div>
               </div>
-            </ResizablePanel>
+            </div>
+          </div>
 
-            {/* Resizable Handle */}
-            <ResizableHandle withHandle />
+          {/* Input Form Panel */}
+          <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
+            <div className="p-4 lg:p-6">
+              <div className="max-w-xl mx-auto space-y-4 lg:space-y-6">
+                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 lg:mb-4">
+                  ข้อมูลซองจดหมาย
+                </h2>
 
-            {/* Input Form Panel */}
-            <ResizablePanel defaultSize={40} minSize={30}>
-              <div className="h-full bg-white dark:bg-gray-800 overflow-auto p-6">
-                <div className="max-w-xl mx-auto space-y-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">ข้อมูลซองจดหมาย</h2>
-                  
-                  {/* Sender Section */}
-                  <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="text-base font-semibold text-green-600 dark:text-green-400">ผู้ส่ง (Sender)</h3>
-                    
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        เลขที่หนังสือ
-                      </label>
-                      <input
-                        type="text"
-                        value={documentNumber}
-                        onChange={(e) => setDocumentNumber(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
+                {/* Sender Section */}
+                <div className="space-y-2 lg:space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm lg:text-base font-semibold text-green-600 dark:text-green-400">
+                    ผู้ส่ง (Sender)
+                  </h3>
 
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        หน่วยงาน
-                      </label>
-                      <input
-                        type="text"
-                        value={senderOrg}
-                        onChange={(e) => setSenderOrg(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        สถาบัน/มหาวิทยาลัย
-                      </label>
-                      <input
-                        type="text"
-                        value={senderUniversity}
-                        onChange={(e) => setSenderUniversity(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ที่อยู่ บรรทัดที่ 1
-                      </label>
-                      <input
-                        type="text"
-                        value={senderAddress1}
-                        onChange={(e) => setSenderAddress1(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ที่อยู่ บรรทัดที่ 2
-                      </label>
-                      <input
-                        type="text"
-                        value={senderAddress2}
-                        onChange={(e) => setSenderAddress2(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        รหัสไปรษณีย์
-                      </label>
-                      <input
-                        type="text"
-                        value={senderPostal}
-                        onChange={(e) => setSenderPostal(e.target.value)}
-                        maxLength={5}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      เลขที่หนังสือ
+                    </label>
+                    <input
+                      type="text"
+                      value={documentNumber}
+                      onChange={(e) => setDocumentNumber(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
 
-                  {/* Recipient Section */}
-                  <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="text-base font-semibold text-blue-600 dark:text-blue-400">ผู้รับ (Recipient)</h3>
-                    
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ชื่อผู้รับ/หน่วยงาน
-                      </label>
-                      <input
-                        type="text"
-                        value={recipientTitle}
-                        onChange={(e) => setRecipientTitle(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ที่อยู่
-                      </label>
-                      <input
-                        type="text"
-                        value={recipientAddress}
-                        onChange={(e) => setRecipientAddress(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        จังหวัด
-                      </label>
-                      <input
-                        type="text"
-                        value={recipientProvince}
-                        onChange={(e) => setRecipientProvince(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        รหัสไปรษณีย์
-                      </label>
-                      <input
-                        type="text"
-                        value={recipientPostal}
-                        onChange={(e) => setRecipientPostal(e.target.value)}
-                        maxLength={5}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      หน่วยงาน
+                    </label>
+                    <input
+                      type="text"
+                      value={senderOrg}
+                      onChange={(e) => setSenderOrg(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
 
-                  {/* Stamp Section */}
-                  <div className="space-y-3">
-                    <h3 className="text-base font-semibold text-purple-600 dark:text-purple-400">ตราประทับ (Stamp)</h3>
-                    
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ข้อความตราประทับ
-                      </label>
-                      <textarea
-                        value={stampText}
-                        onChange={(e) => setStampText(e.target.value)}
-                        rows={3}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      สถาบัน/มหาวิทยาลัย
+                    </label>
+                    <input
+                      type="text"
+                      value={senderUniversity}
+                      onChange={(e) => setSenderUniversity(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ที่อยู่ บรรทัดที่ 1
+                    </label>
+                    <input
+                      type="text"
+                      value={senderAddress1}
+                      onChange={(e) => setSenderAddress1(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ที่อยู่ บรรทัดที่ 2
+                    </label>
+                    <input
+                      type="text"
+                      value={senderAddress2}
+                      onChange={(e) => setSenderAddress2(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      รหัสไปรษณีย์
+                    </label>
+                    <input
+                      type="text"
+                      value={senderPostal}
+                      onChange={(e) => setSenderPostal(e.target.value)}
+                      maxLength={5}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
                 </div>
+
+                {/* Recipient Section */}
+                <div className="space-y-2 lg:space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm lg:text-base font-semibold text-blue-600 dark:text-blue-400">
+                    ผู้รับ (Recipient)
+                  </h3>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ชื่อผู้รับ/หน่วยงาน
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientTitle}
+                      onChange={(e) => setRecipientTitle(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ที่อยู่
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientAddress}
+                      onChange={(e) => setRecipientAddress(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      จังหวัด
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientProvince}
+                      onChange={(e) => setRecipientProvince(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      รหัสไปรษณีย์
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientPostal}
+                      onChange={(e) => setRecipientPostal(e.target.value)}
+                      maxLength={5}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Stamp Section */}
+                <div className="space-y-2 lg:space-y-3">
+                  <h3 className="text-sm lg:text-base font-semibold text-purple-600 dark:text-purple-400">
+                    ตราประทับ (Stamp)
+                  </h3>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ข้อความตราประทับ
+                    </label>
+                    <textarea
+                      value={stampText}
+                      onChange={(e) => setStampText(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* PDF Export Note */}
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                  <p className="text-xs text-blue-800 dark:text-blue-300">
+                    <strong>หมายเหตุ:</strong> ไฟล์ PDF จะใช้ฟอนต์ **TH Sarabun
+                    New** ที่ถูกฝังไว้แล้ว โปรดตรวจสอบว่าไฟล์
+                    **`thsarabunnew-normal.js`** และ **`thsarabunnew-bold.js`**
+                    ถูกนำเข้าอย่างถูกต้อง
+                  </p>
+                </div>
               </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+            </div>
+          </div>
         </div>
       </div>
     </div>
