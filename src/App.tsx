@@ -136,7 +136,7 @@ export default function DocumentEditor() {
 
     // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
 
-    const recipientBaseX = pageWidth * 0.3;
+    const recipientBaseX = pageWidth * 0.35;
     const recipientBaseY = pageHeight * 0.55;
     const recipientLineSpacing = 12;
 
