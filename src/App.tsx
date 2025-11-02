@@ -70,6 +70,12 @@ export default function DocumentEditor() {
   const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
+  // 💡 State สำหรับคำขึ้นต้น
+  const [greetingText, setGreetingText] = useState("เรียน");
+  const [greetingPosition, setGreetingPosition] = useState<"left" | "top">(
+    "left"
+  ); // 'left' = คอลัมน์ซ้าย, 'top' = เหนือผู้รับ
+
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
     const lines = input
@@ -175,38 +181,42 @@ export default function DocumentEditor() {
       .join("\n\n");
   };
 
-  // --- ฟังก์ชัน: กรอกข้อมูลตัวอย่าง (ใช้ข้อมูล Mockup ดั้งเดิม) ---
-  const fillExampleData = (type: "sender" | "recipient" | "stamp") => {
+  // --- ฟังก์ชัน: กรอกข้อมูลตัวอย่าง ---
+  const fillExampleData = (
+    type: "sender" | "recipient" | "stamp" | "greeting"
+  ) => {
     if (type === "sender") {
       const defaultSenderData = generateSenderString(initialSender);
       setSenderInput(defaultSenderData);
       parseSenderInput(defaultSenderData);
     } else if (type === "recipient") {
-      // 💡 การแก้ไข: เพิ่มชุดข้อมูลใหม่ต่อท้ายชุดเดิม
       const newExampleData = generateRecipientString(initialRecipients);
 
       let updatedInput = recipientInput.trim();
 
       if (updatedInput.length > 0) {
-        // หากมีข้อมูลเดิมอยู่ ให้คั่นด้วย \n\n ก่อน แล้วต่อด้วยข้อมูลใหม่
         updatedInput += "\n\n" + newExampleData;
       } else {
-        // หากไม่มีข้อมูลเดิม ให้ใช้ข้อมูลใหม่เลย
         updatedInput = newExampleData;
       }
 
       setRecipientInput(updatedInput);
       parseRecipientInput(updatedInput);
+
+      // 💡 การทำงานเพิ่มเติม: ตั้งค่า greeting เป็น "เรียน" เมื่อเพิ่มข้อมูลผู้รับ
+      setGreetingText("เรียน");
     } else if (type === "stamp") {
       setManualStampInput(DEFAULT_STAMP_TEXT);
       setStampText(DEFAULT_STAMP_TEXT);
       setDisableStamp(false); // เปิดใช้งาน Stamp ด้วย
+    } else if (type === "greeting") {
+      setGreetingText("เรียน");
     }
   };
   // --- สิ้นสุดฟังก์ชัน ---
 
   // --- ฟังก์ชัน: เคลียร์ข้อมูล ---
-  const clearData = (type: "sender" | "recipient" | "stamp") => {
+  const clearData = (type: "sender" | "recipient" | "stamp" | "greeting") => {
     if (type === "sender") {
       setSenderInput("");
       parseSenderInput("");
@@ -216,6 +226,8 @@ export default function DocumentEditor() {
     } else if (type === "stamp") {
       setManualStampInput("");
       setStampText("");
+    } else if (type === "greeting") {
+      setGreetingText("");
     }
   };
   // --- สิ้นสุดฟังก์ชัน ---
@@ -226,7 +238,6 @@ export default function DocumentEditor() {
     fillExampleData("sender");
 
     // 2. ข้อมูลผู้รับ
-    // 💡 การแก้ไข: ใช้การสร้าง string ดั้งเดิมเพื่อโหลดเพียง 1 ชุด
     const defaultRecipientData = generateRecipientString(initialRecipients);
     setRecipientInput(defaultRecipientData);
     parseRecipientInput(defaultRecipientData);
@@ -234,9 +245,12 @@ export default function DocumentEditor() {
     // 3. ข้อมูลตราประทับ
     setManualStampInput(DEFAULT_STAMP_TEXT);
     setStampText(DEFAULT_STAMP_TEXT);
+
+    // 4. คำขึ้นต้น
+    setGreetingText("เรียน");
   }, [parseSenderInput, parseRecipientInput]);
 
-  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า (ไม่มีการเปลี่ยนแปลงในส่วนนี้)
+  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า (มีการแก้ไขในส่วน Recipient)
   const generatePdfDataUri = useCallback(() => {
     const pdf = new jsPDF({
       orientation: "landscape",
@@ -332,30 +346,46 @@ export default function DocumentEditor() {
       pdf.setFontSize(26);
       pdf.setFont(SARABUN_FONT, "bold");
 
-      const recipientLabel = "เรียน";
-
-      pdf.text(recipientLabel, recipientBaseX, recipientBaseY);
-
-      const labelWidth = pdf.getTextWidth(recipientLabel);
+      const labelWidth = pdf.getTextWidth(greetingText);
       const detailGap = 8;
-      const recipientDetailX = recipientBaseX + labelWidth + detailGap;
+      let recipientDetailX;
+      let startY = recipientBaseY;
 
-      pdf.text(data.recipientTitle, recipientDetailX, recipientBaseY);
+      // 💡 Logic การกำหนดตำแหน่งคำขึ้นต้น
+      if (greetingText && greetingPosition === "left") {
+        // ตำแหน่ง: คอลัมน์ซ้าย (เรียน [Title])
+        pdf.text(greetingText, recipientBaseX, recipientBaseY);
+        recipientDetailX = recipientBaseX + labelWidth + detailGap;
+      } else {
+        // ตำแหน่ง: เหนือผู้รับ
+        if (greetingText) {
+          pdf.text(
+            greetingText,
+            recipientBaseX,
+            recipientBaseY - recipientLineSpacing
+          );
+        }
+        recipientDetailX = recipientBaseX;
+        startY = recipientBaseY; // เริ่มที่ BaseY (บรรทัดแรกของข้อมูลผู้รับ)
+      }
+
+      // พิมพ์ข้อมูลผู้รับ (Title, Address, Province, Postal)
+      pdf.text(data.recipientTitle, recipientDetailX, startY);
       pdf.text(
         data.recipientAddress,
         recipientDetailX,
-        recipientBaseY + recipientLineSpacing
+        startY + recipientLineSpacing
       );
       pdf.text(
         data.recipientProvince,
         recipientDetailX,
-        recipientBaseY + recipientLineSpacing * 2
+        startY + recipientLineSpacing * 2
       );
-      pdf.text(data.recipientPostal, recipientDetailX, recipientBaseY + 39);
+      pdf.text(data.recipientPostal, recipientDetailX, startY + 39);
     });
 
     return pdf.output("datauristring");
-  }, [recipientsData, stampText, senderData]);
+  }, [recipientsData, stampText, senderData, greetingText, greetingPosition]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
   useEffect(() => {
@@ -438,7 +468,7 @@ export default function DocumentEditor() {
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <div className="flex justify-between items-end">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-500 dark:text-blue-400 border-b border-blue-100 pb-1">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
                   <div className="flex gap-1">
@@ -480,34 +510,74 @@ export default function DocumentEditor() {
 
                 {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
                 <div className="flex justify-between items-end pt-2">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-500 dark:text-blue-400 border-b border-blue-100 pb-1">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                   </h2>
                   <div className="flex gap-1">
                     {" "}
                     {/* จัดกลุ่มปุ่ม */}
+                    {/* 💡 ปุ่มรวม: เพิ่มข้อมูลผู้รับ + ตั้งค่า "เรียน" */}
                     <Button
                       onClick={() => fillExampleData("recipient")}
                       variant="outline"
                       size="sm"
                       className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                      title="เพิ่มชุดข้อมูลตัวอย่าง และตั้งค่าคำขึ้นต้นเป็น 'เรียน'"
                     >
                       เพิ่มชุดข้อมูลตัวอย่าง
                     </Button>
-                    {/* ปุ่มเคลียร์ข้อมูล (Icon-only) */}
+                    {/* 💡 ปุ่มเคลียร์ข้อมูล */}
                     <Button
                       onClick={() => clearData("recipient")}
                       variant="icon-destructive"
                       size="icon-sm"
-                      title="เคลียร์ข้อมูลผู้รับ"
+                      title="เคลียร์ข้อมูลผู้รับทั้งหมด"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
-                </p>
+
+                {/* 💡 Greeting Control ที่ถูกย้ายมาอยู่ด้านล่าง Heading ของ Recipients */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      ข้อความคำขึ้นต้น (เช่น เรียน, ถึง, ... หรือปล่อยว่าง)
+                    </label>
+                    <div className="flex gap-1">
+                      {/* 💡 ลบปุ่ม "ใช้ 'เรียน'" ออกไปแล้ว */}
+                      {/* 💡 ลบปุ่มเคลียร์คำขึ้นต้นออกไปแล้ว */}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={greetingText}
+                    onChange={(e) => setGreetingText(e.target.value)}
+                    placeholder="เช่น เรียน"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 outline-none"
+                  />
+
+                  <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
+                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      ตำแหน่งคำขึ้นต้น: **
+                      {greetingPosition === "left"
+                        ? "คอลัมน์ซ้าย"
+                        : "เหนือผู้รับ"}
+                      **
+                    </label>
+                    <Switch
+                      checked={greetingPosition === "top"} // True คือ 'top'
+                      onCheckedChange={(checked) =>
+                        setGreetingPosition(checked ? "top" : "left")
+                      }
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
+                  </p>
+                </div>
+                {/* --- สิ้นสุด Greeting Control --- */}
+
                 <textarea
                   value={recipientInput}
                   onChange={handleRecipientChange}
