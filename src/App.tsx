@@ -374,7 +374,7 @@ export default function DocumentEditor() {
           {/* Preview Panel */}
           <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
             <div
-              className={`transition-all bg-white shadow-xl border-4 border-blue-400/50 
+              className={`transition-all bg-white shadow-xl
                 w-full max-w-[95%] aspect-[1.414/1] 
                 p-2`}
             >
