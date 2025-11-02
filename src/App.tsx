@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText } from "lucide-react";
 import jsPDF from "jspdf";
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
@@ -7,133 +7,177 @@ import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
-const GARUDA_EMBLEM_WIDTH = 15;
-const GARUDA_EMBLEM_HEIGHT = 15;
+// 💡 เปลี่ยนจำนวนบรรทัดต่อบล็อกผู้รับเป็น 4 บรรทัด
+const RECIPIENT_LINES_PER_BLOCK = 4;
+// 💡 จำนวนบรรทัดต่อบล็อกผู้ส่งคือ 6 บรรทัด
+const SENDER_LINES_PER_BLOCK = 6;
+
+// กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
+interface RecipientData {
+  recipientTitle: string;
+  recipientAddress: string;
+  recipientProvince: string;
+  recipientPostal: string;
+}
+
+// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (Sender fields)
+interface SenderData {
+  documentNumber: string;
+  senderOrg: string;
+  senderUniversity: string;
+  senderAddress1: string;
+  senderAddress2: string;
+  senderPostal: string;
+}
 
 // กำหนดข้อความตราประทับมาตรฐานเป็นค่าคงที่
 const DEFAULT_STAMP_TEXT =
   "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ ๘๕/๒๕๒๑\nพิษณุโลก";
 
+// โครงสร้างข้อมูลเริ่มต้น
+const initialSender: SenderData = {
+  documentNumber: "ที่ อว. 0603.32.01/ว 249",
+  senderOrg: "วิทยาลัยเพื่อการค้นคว้าระดับรากฐาน",
+  senderUniversity: "มหาวิทยาลัยนเรศวร",
+  senderAddress1: "เลขที่ 99 หมู่ที่ 9 ตำบลท่าโพธิ์",
+  senderAddress2: "อำเภอเมือง จังหวัดพิษณุโลก",
+  senderPostal: "65000",
+};
+
+const initialRecipients: RecipientData[] = [
+  {
+    recipientTitle: "ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม",
+    recipientAddress: "55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง",
+    recipientProvince: "จังหวัดอุทัยธานี",
+    recipientPostal: "61000",
+  },
+];
+
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
 
-  // State สำหรับ 10 บรรทัดแรก (Copy/Paste)
-  const [csvInput, setCsvInput] = useState("");
+  // 💡 NEW STATE: ข้อมูลผู้ส่งชุดเดียว
+  const [senderData, setSenderData] = useState<SenderData>(initialSender);
+  const [senderInput, setSenderInput] = useState(""); // Input Box ผู้ส่ง
 
-  // State สำหรับเก็บข้อความตราประทับเมื่อ Toggle ถูกเปิด (แสดงตลอด)
+  // State ข้อมูลผู้รับหลายชุด
+  const [recipientsData, setRecipientsData] =
+    useState<RecipientData[]>(initialRecipients);
+  const [recipientInput, setRecipientInput] = useState(""); // Input Box ผู้รับ
+
   const [manualStampInput, setManualStampInput] = useState(
     DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n")
   );
 
-  // 💡 การแก้ไข 1: State ควบคุมการปิดการใช้งาน (ค่าเริ่มต้น: FALSE = เปิดใช้งานอยู่)
-  const [disableStamp, setDisableStamp] = useState(false); // False = Stamp ON
-
-  // ข้อมูลผู้ส่ง/ผู้รับ (ไม่เปลี่ยนแปลง)
-  const [documentNumber, setDocumentNumber] = useState(
-    "ที่ อว. 0603.32.01/ว 249"
-  );
-  const [senderOrg, setSenderOrg] = useState(
-    "วิทยาลัยเพื่อการค้นคว้าระดับรากฐาน"
-  );
-  const [senderUniversity, setSenderUniversity] = useState("มหาวิทยาลัยนเรศวร");
-  const [senderAddress1, setSenderAddress1] = useState(
-    "เลขที่ 99 หมู่ที่ 9 ตำบลท่าโพธิ์"
-  );
-  const [senderAddress2, setSenderAddress2] = useState(
-    "อำเภอเมือง จังหวัดพิษณุโลก"
-  );
-  const [senderPostal, setSenderPostal] = useState("65000");
-
-  const [recipientTitle, setRecipientTitle] = useState(
-    "ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม"
-  );
-  const [recipientAddress, setRecipientAddress] = useState(
-    "55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง"
-  );
-  const [recipientProvince, setRecipientProvince] =
-    useState("จังหวัดอุทัยธานี");
-  const [recipientPostal, setRecipientPostal] = useState("61000");
-
-  // Stamp Text State: ถูกควบคุมโดย useEffect ด้านล่าง
-  // 💡 การแก้ไข 2: เริ่มต้นด้วย manualStampInput (ซึ่งคือค่ามาตรฐาน)
+  const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
-  // Parse ข้อมูล 10 บรรทัด (Sender/Recipient)
-  const parseCsvInput = useCallback((input) => {
-    const lines = input.split("\n").map((line) => line.trim());
+  // 💡 NEW LOGIC: Parse ข้อมูลผู้ส่ง (6 บรรทัด)
+  const parseSenderInput = useCallback((input: string) => {
+    const lines = input.split("\n").map((line: string) => line.trim());
 
-    if (lines.length >= 10) {
-      setDocumentNumber(lines[0] || "");
-      setSenderOrg(lines[1] || "");
-      setSenderUniversity(lines[2] || "");
-      setSenderAddress1(lines[3] || "");
-      setSenderAddress2(lines[4] || "");
-      setSenderPostal(lines[5] || "");
-      setRecipientTitle(lines[6] || "");
-      setRecipientAddress(lines[7] || "");
-      setRecipientProvince(lines[8] || "");
-      setRecipientPostal(lines[9] || "");
+    if (lines.length >= SENDER_LINES_PER_BLOCK) {
+      setSenderData({
+        documentNumber: lines[0] || "",
+        senderOrg: lines[1] || "",
+        senderUniversity: lines[2] || "",
+        senderAddress1: lines[3] || "",
+        senderAddress2: lines[4] || "",
+        senderPostal: lines[5] || "",
+      });
     }
   }, []);
 
-  // Handler สำหรับช่องกรอกข้อมูล 10 บรรทัด
-  const handleCsvChange = (e) => {
+  // 💡 NEW LOGIC: Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
+  const parseRecipientInput = useCallback((input: string) => {
+    const lines = input.split("\n").map((line: string) => line.trim());
+    const newRecipients: RecipientData[] = [];
+
+    for (let i = 0; i < lines.length; i += RECIPIENT_LINES_PER_BLOCK) {
+      const block = lines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
+
+      // ตรวจสอบว่ามี 4 บรรทัดและมีชื่อผู้รับ (บรรทัดที่ 1 ของบล็อก)
+      if (block.length === RECIPIENT_LINES_PER_BLOCK && block[0].trim()) {
+        newRecipients.push({
+          recipientTitle: block[0] || "",
+          recipientAddress: block[1] || "",
+          recipientProvince: block[2] || "",
+          recipientPostal: block[3] || "",
+        });
+      }
+    }
+
+    setRecipientsData(
+      newRecipients.length > 0 ? newRecipients : initialRecipients
+    );
+  }, []);
+
+  // Handler สำหรับช่องกรอกข้อมูลผู้ส่ง
+  const handleSenderChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    setCsvInput(value);
-    parseCsvInput(value);
+    setSenderInput(value);
+    parseSenderInput(value);
   };
 
-  // Handler สำหรับช่องกรอกข้อมูลตราประทับที่แยกออกมา
-  const handleManualStampChange = (e) => {
+  // Handler สำหรับช่องกรอกข้อมูลผู้รับ
+  const handleRecipientChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setRecipientInput(value);
+    parseRecipientInput(value);
+  };
+
+  // Handler สำหรับช่องกรอกข้อมูลตราประทับ
+  const handleManualStampChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setManualStampInput(value);
   };
 
-  // 💡 การแก้ไข 3: จัดการการเปลี่ยนแปลงของ Toggle
   const handleToggleChange = () => {
     setDisableStamp((prev) => !prev);
   };
 
-  // 💡 การแก้ไข 4: Logic การควบคุม StampText และ Input Read-only
   useEffect(() => {
     let newStampText = "";
 
     if (!disableStamp) {
-      // FALSE (ไม่ปิดการใช้งาน) -> Stamp ON: ใช้ค่าที่พิมพ์
       newStampText = manualStampInput.replace(/\\n/g, "\n");
     } else {
-      // TRUE (ปิดการใช้งาน) -> Stamp OFF: ใช้ค่าว่าง
       newStampText = "";
     }
 
     setStampText(newStampText);
   }, [disableStamp, manualStampInput]);
 
-  // Initial Load: สร้างข้อมูลเริ่มต้นสำหรับ Paste
+  // Initial Load: สร้างข้อมูลเริ่มต้น
   useEffect(() => {
-    const defaultData = [
-      documentNumber,
-      senderOrg,
-      senderUniversity,
-      senderAddress1,
-      senderAddress2,
-      senderPostal,
-      recipientTitle,
-      recipientAddress,
-      recipientProvince,
-      recipientPostal,
+    // 1. ข้อมูลผู้ส่ง (6 บรรทัด)
+    const defaultSenderData = [
+      initialSender.documentNumber,
+      initialSender.senderOrg,
+      initialSender.senderUniversity,
+      initialSender.senderAddress1,
+      initialSender.senderAddress2,
+      initialSender.senderPostal,
     ].join("\n");
-    setCsvInput(defaultData);
+    setSenderInput(defaultSenderData);
+    parseSenderInput(defaultSenderData);
 
-    // ตั้งค่า manualStampInput เริ่มต้น และ parse ข้อมูลหลัก
-    const initialStampInput = DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n");
-    setManualStampInput(initialStampInput);
-    setStampText(DEFAULT_STAMP_TEXT); // ให้ PDF แสดงค่านี้ในตอนเริ่มต้น
+    // 2. ข้อมูลผู้รับ (4 บรรทัด)
+    const defaultRecipientData = [
+      initialRecipients[0].recipientTitle,
+      initialRecipients[0].recipientAddress,
+      initialRecipients[0].recipientProvince,
+      initialRecipients[0].recipientPostal,
+    ].join("\n");
+    setRecipientInput(defaultRecipientData);
+    parseRecipientInput(defaultRecipientData);
 
-    parseCsvInput(defaultData);
-  }, []); // Run only once on mount
+    // 3. ข้อมูลตราประทับ
+    setManualStampInput(DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n"));
+    setStampText(DEFAULT_STAMP_TEXT);
+  }, [parseSenderInput, parseRecipientInput]);
 
-  // ฟังก์ชันสร้าง PDF และคืนค่า Data URI string
+  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า
   const generatePdfDataUri = useCallback(() => {
     const pdf = new jsPDF({
       orientation: "landscape",
@@ -145,127 +189,125 @@ export default function DocumentEditor() {
     const pageHeight = 210;
     const margin = 20;
 
-    pdf.setFont(SARABUN_FONT, "normal");
+    // 💡 ดึงข้อมูลผู้ส่งจาก State ชุดเดียว
+    const sender = senderData;
 
-    // --- 1. ตราครุฑ
-    // Note: การวาดวงกลมเป็นการจำลองตำแหน่งของตราครุฑ
-    const emblemX = margin + 15;
-    const emblemY = margin + 15;
-    pdf.circle(emblemX, emblemY, 7);
+    recipientsData.forEach((data, index) => {
+      if (index > 0) {
+        pdf.addPage();
+      }
 
-    // --- 2. ที่อยู่ผู้ส่ง (18px)
-    const senderX = margin;
-    let senderY = margin + 45;
-    const lineSpacing = 8;
+      pdf.setFont(SARABUN_FONT, "normal");
 
-    pdf.setFontSize(18);
+      // --- 1. ตราครุฑ
+      // (ตำแหน่งเดิม)
 
-    // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
-    pdf.setFont(SARABUN_FONT, "bold");
-    pdf.text(documentNumber, senderX, senderY);
-    senderY += lineSpacing;
+      // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
+      const senderX = margin;
+      let senderY = margin + 45;
+      const lineSpacing = 8;
 
-    // ส่วนที่เหลือ: องค์กร ที่อยู่ (Normal)
-    pdf.setFont(SARABUN_FONT, "normal");
-    const senderLines = [
-      senderOrg,
-      senderUniversity,
-      senderAddress1,
-      senderAddress2,
-      senderPostal,
-    ];
-    senderLines.forEach((line) => {
-      pdf.text(line, senderX, senderY);
+      pdf.setFontSize(18);
+
+      // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
+      pdf.setFont(SARABUN_FONT, "bold");
+      pdf.text(sender.documentNumber, senderX, senderY);
       senderY += lineSpacing;
+
+      // ส่วนที่เหลือ: องค์กร ที่อยู่ (Normal)
+      pdf.setFont(SARABUN_FONT, "normal");
+      const senderLines = [
+        sender.senderOrg,
+        sender.senderUniversity,
+        sender.senderAddress1,
+        sender.senderAddress2,
+        sender.senderPostal,
+      ];
+      senderLines.forEach((line) => {
+        pdf.text(line, senderX, senderY);
+        senderY += lineSpacing;
+      });
+
+      // --- 3. ตราประทับ (Stamp Box)
+      if (stampText && stampText.trim().length > 0) {
+        // ... Logic การวาดตราประทับ ...
+        pdf.setFontSize(14);
+        const stampLines = stampText.split("\n");
+
+        const paddingX = 3;
+        const paddingY = 1.5;
+        const stampLineSpacing = 7;
+
+        let maxWidth = 0;
+        stampLines.forEach((line) => {
+          const width = pdf.getTextWidth(line);
+          if (width > maxWidth) {
+            maxWidth = width;
+          }
+        });
+
+        const stampWidth = maxWidth + paddingX * 2;
+        const stampHeight = stampLines.length * stampLineSpacing + paddingY * 2;
+
+        const moveUpOffset = 5;
+        const stampX = pageWidth - margin - stampWidth;
+        const stampY = margin - moveUpOffset;
+
+        const textStartOffset = 3.5;
+        let currentY = stampY + paddingY + textStartOffset;
+
+        pdf.rect(stampX, stampY, stampWidth, stampHeight);
+
+        stampLines.forEach((line) => {
+          const textWidth = pdf.getTextWidth(line);
+          pdf.text(line, stampX + (stampWidth - textWidth) / 2, currentY);
+          currentY += stampLineSpacing;
+        });
+        // ... สิ้นสุด Logic การวาดตราประทับ ...
+      }
+
+      // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
+      const recipientBaseX = pageWidth * 0.3;
+      const recipientBaseY = pageHeight * 0.55;
+      const recipientLineSpacing = 12;
+
+      pdf.setFontSize(26);
+      pdf.setFont(SARABUN_FONT, "bold");
+
+      const recipientLabel = "เรียน";
+
+      pdf.text(recipientLabel, recipientBaseX, recipientBaseY);
+
+      const labelWidth = pdf.getTextWidth(recipientLabel);
+      const detailGap = 8;
+      const recipientDetailX = recipientBaseX + labelWidth + detailGap;
+
+      pdf.text(data.recipientTitle, recipientDetailX, recipientBaseY);
+      pdf.text(
+        data.recipientAddress,
+        recipientDetailX,
+        recipientBaseY + recipientLineSpacing
+      );
+      pdf.text(
+        data.recipientProvince,
+        recipientDetailX,
+        recipientBaseY + recipientLineSpacing * 2
+      );
+      pdf.text(data.recipientPostal, recipientDetailX, recipientBaseY + 39);
     });
 
-    // --- 3. ตราประทับ (Stamp Box)
-
-    // เงื่อนไขการวาด: วาดเมื่อ stampText ไม่ใช่ค่าว่างเท่านั้น
-    if (stampText && stampText.trim().length > 0) {
-      pdf.setFontSize(14);
-      const stampLines = stampText.split("\n");
-
-      const paddingX = 3;
-      const paddingY = 1.5;
-      const stampLineSpacing = 7;
-
-      let maxWidth = 0;
-      stampLines.forEach((line) => {
-        const width = pdf.getTextWidth(line);
-        if (width > maxWidth) {
-          maxWidth = width;
-        }
-      });
-
-      const stampWidth = maxWidth + paddingX * 2;
-      const stampHeight = stampLines.length * stampLineSpacing + paddingY * 2;
-
-      const moveUpOffset = 5;
-      const stampX = pageWidth - margin - stampWidth;
-      const stampY = margin - moveUpOffset;
-
-      const textStartOffset = 3.5;
-      let currentY = stampY + paddingY + textStartOffset;
-
-      pdf.rect(stampX, stampY, stampWidth, stampHeight);
-
-      stampLines.forEach((line) => {
-        const textWidth = pdf.getTextWidth(line);
-        pdf.text(line, stampX + (stampWidth - textWidth) / 2, currentY);
-        currentY += stampLineSpacing;
-      });
-    }
-
-    // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
-
-    const recipientBaseX = pageWidth * 0.3;
-    const recipientBaseY = pageHeight * 0.55;
-    const recipientLineSpacing = 12;
-
-    pdf.setFontSize(26);
-    pdf.setFont(SARABUN_FONT, "bold");
-
-    const recipientLabel = "เรียน";
-
-    pdf.text(recipientLabel, recipientBaseX, recipientBaseY);
-
-    const labelWidth = pdf.getTextWidth(recipientLabel);
-    const detailGap = 8;
-    const recipientDetailX = recipientBaseX + labelWidth + detailGap;
-
-    pdf.text(recipientTitle, recipientDetailX, recipientBaseY);
-    pdf.text(
-      recipientAddress,
-      recipientDetailX,
-      recipientBaseY + recipientLineSpacing
-    );
-    pdf.text(
-      recipientProvince,
-      recipientDetailX,
-      recipientBaseY + recipientLineSpacing * 2
-    );
-    pdf.text(recipientPostal, recipientDetailX, recipientBaseY + 39);
-
     return pdf.output("datauristring");
-  }, [
-    documentNumber,
-    senderOrg,
-    senderUniversity,
-    senderAddress1,
-    senderAddress2,
-    senderPostal,
-    recipientTitle,
-    recipientAddress,
-    recipientProvince,
-    recipientPostal,
-    stampText,
-  ]);
+  }, [recipientsData, stampText, senderData]); // 💡 เพิ่ม senderData ใน Dependencies
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
   useEffect(() => {
-    const dataUri = generatePdfDataUri();
-    setPdfUrl(dataUri);
+    try {
+      const dataUri = generatePdfDataUri();
+      setPdfUrl(dataUri);
+    } catch (error) {
+      console.error("Error generating PDF preview:", error);
+      setPdfUrl("");
+    }
   }, [generatePdfDataUri]);
 
   // ฟังก์ชันสำหรับ Download PDF จริงๆ
@@ -273,13 +315,13 @@ export default function DocumentEditor() {
     const pdfDataUri = generatePdfDataUri();
     const a = document.createElement("a");
     a.href = pdfDataUri;
-    a.download = "envelope-label.pdf";
+    a.download = "envelope-labels.pdf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  // 💡 ตัวแปรสำหรับควบคุม JSX
+  // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
   const toggleLabel = isStampEnabled
     ? "ต้องการปิดการใช้งาน"
@@ -293,12 +335,12 @@ export default function DocumentEditor() {
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h2 className="text-[22px] font-semibold text-gray-900 dark:text-gray-100">
-              Thai Official Envelope Label Editor
+              Thai Official Envelope Label Editor (Multi-Recipient)
             </h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-xs text-gray-600 dark:text-gray-400 mr-2 hidden sm:block">
-              Export: PDF
+              Export: PDF ({recipientsData.length} Pages)
             </div>
             <button
               onClick={handleDownload}
@@ -324,7 +366,6 @@ export default function DocumentEditor() {
                   title="PDF Preview"
                   src={pdfUrl}
                   className="w-full h-full border-none"
-                  type="application/pdf"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -334,44 +375,59 @@ export default function DocumentEditor() {
             </div>
           </div>
 
-          {/* 💡 Input Panel ใหม่: ช่องกรอกข้อมูลแบบ CSV/Text */}
+          {/* 💡 Input Panel ใหม่: แยกช่องกรอกผู้ส่ง/ผู้รับ */}
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-4 lg:p-6">
               <div className="max-w-xl mx-auto space-y-4 lg:space-y-6">
-                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 lg:mb-4">
-                  ข้อมูลผู้ส่ง/ผู้รับ (Copy/Paste)
+                {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
+                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                  ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  โปรดป้อนข้อมูล 10 บรรทัดแรกตามลำดับ (หนึ่งค่าต่อหนึ่งบรรทัด)
-                </p>
-
-                <div className="space-y-2 lg:space-y-3">
-                  <textarea
-                    value={csvInput}
-                    onChange={handleCsvChange}
-                    rows={10}
-                    placeholder={`
-1. เลขที่หนังสือ (ที่ อว. 0603.32.01/ว 249)
+                <textarea
+                  value={senderInput}
+                  onChange={handleSenderChange}
+                  rows={6}
+                  placeholder={`
+1. เลขที่หนังสือ
 2. หน่วยงานผู้ส่ง
 3. สถาบัน/มหาวิทยาลัย
 4. ที่อยู่ บรรทัด 1
 5. ที่อยู่ บรรทัด 2
 6. รหัสไปรษณีย์ผู้ส่ง
-7. ชื่อ/หน่วยงานผู้รับ
-8. ที่อยู่ผู้รับ
-9. จังหวัดผู้รับ
-10. รหัสไปรษณีย์ผู้รับ
-                    `.trim()}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
-                  />
-                </div>
+                  `.trim()}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
+                />
+
+                {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
+                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3">
+                  ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
+                </p>
+                <textarea
+                  value={recipientInput}
+                  onChange={handleRecipientChange}
+                  rows={10}
+                  placeholder={`
+ชุดที่ 1 (4 บรรทัด)
+1. ชื่อ/หน่วยงานผู้รับ
+2. ที่อยู่ผู้รับ
+3. จังหวัดผู้รับ
+4. รหัสไปรษณีย์ผู้รับ
+
+ชุดที่ 2 (4 บรรทัด)
+1. ชื่อ/หน่วยงานผู้รับ...
+                  `.trim()}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
+                />
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
                 <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3">
-                  ข้อมูลตราประทับ
+                  ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                 </h2>
 
-                {/* 💡 Toggle Button สำหรับตราประทับ */}
+                {/* Toggle and Input Area */}
                 <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
                   <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">
                     สถานะตราประทับ: **
@@ -389,55 +445,26 @@ export default function DocumentEditor() {
                   </button>
                 </div>
 
-                {/* Dedicated Textarea for Stamp Input (Always Visible) */}
                 <div className="space-y-2 lg:space-y-3 pt-3">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     ข้อความตราประทับ (ใช้ `\n` สำหรับขึ้นบรรทัดใหม่)
                   </label>
                   <textarea
-                    // 💡 แสดงค่า manualStampInput เสมอ
                     value={manualStampInput}
                     onChange={handleManualStampChange}
                     rows={4}
                     placeholder={DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n")}
-                    // 💡 ReadOnly/Style Toggled based on isStampEnabled
                     readOnly={!isStampEnabled}
                     className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md resize-none font-mono 
                             ${
-                              !isStampEnabled // อ่านอย่างเดียวเมื่อปิดใช้งาน
+                              !isStampEnabled
                                 ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
                                 : "bg-white dark:bg-gray-700 text-gray-900 focus:ring-2 focus:ring-blue-500"
                             }
                         `}
                   />
                 </div>
-
-                {/* --- Data Structure Guide --- */}
-                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                  <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                    ลำดับข้อมูลที่ต้องการ (10 บรรทัด)
-                  </h3>
-                  <ol className="text-xs text-yellow-700 dark:text-yellow-400 list-decimal list-inside space-y-1">
-                    <li>เลขที่หนังสือ (Document Number)</li>
-                    <li>หน่วยงานผู้ส่ง (Sender Organization)</li>
-                    <li>สถาบัน/มหาวิทยาลัย (Sender University)</li>
-                    <li>ที่อยู่ผู้ส่ง บรรทัด 1 (Sender Address 1)</li>
-                    <li>ที่อยู่ผู้ส่ง บรรทัด 2 (Sender Address 2)</li>
-                    <li>รหัสไปรษณีย์ผู้ส่ง (Sender Postal)</li>
-                    <li>ชื่อ/หน่วยงานผู้รับ (Recipient Title)</li>
-                    <li>ที่อยู่ผู้รับ (Recipient Address)</li>
-                    <li>จังหวัดผู้รับ (Recipient Province)</li>
-                    <li>รหัสไปรษณีย์ผู้รับ (Recipient Postal)</li>
-                  </ol>
-                </div>
-
-                {/* PDF Export Note */}
-                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>หมายเหตุ:</strong> เมื่อตราประทับ **เปิดใช้งาน**
-                    คุณสามารถป้อนข้อความเองได้ และข้อความที่ป้อนจะปรากฏใน PDF
-                  </p>
-                </div>
+                {/* End Toggle and Input Area */}
               </div>
             </div>
           </div>
