@@ -1,24 +1,26 @@
 import { useState } from "react";
 import { Download, FileText, RotateCw } from "lucide-react";
 import jsPDF from "jspdf";
-// 💡 การแก้ไข 1: นำเข้าไฟล์ฟอนต์ที่แปลงแล้ว
-// ตรวจสอบให้แน่ใจว่าพาธไฟล์ถูกต้อง (สมมติว่าไฟล์อยู่ในโฟลเดอร์เดียวกัน)
+// ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
-// 💡 การแก้ไข 2: กำหนดชื่อฟอนต์ (ต้องตรงกับชื่อที่ใช้ในการแปลง)
 const SARABUN_FONT = "THSarabunNew";
+
+// Base64 Placeholder สำหรับตราครุฑ
+const GARUDA_EMBLEM_WIDTH = 15; // mm (ขนาดครุฑ)
+const GARUDA_EMBLEM_HEIGHT = 15; // mm
 
 export default function DocumentEditor() {
   const [isLandscape, setIsLandscape] = useState(true);
 
-  // Sender info (top left)
+  // ข้อมูลผู้ส่ง/ผู้รับ
   const [documentNumber, setDocumentNumber] = useState(
-    "ที่ อว 0603.32.01/ว 249"
+    "ที่ อว. 0603.32.01/ว 249"
   );
   const [senderOrg, setSenderOrg] = useState(
-    "วิทยาลัยเพื่อการคุ้มครองระดับราชฐาน"
+    "วิทยาลัยเพื่อการค้นคว้าระดับรากฐาน"
   );
   const [senderUniversity, setSenderUniversity] = useState("มหาวิทยาลัยนเรศวร");
   const [senderAddress1, setSenderAddress1] = useState(
@@ -29,9 +31,8 @@ export default function DocumentEditor() {
   );
   const [senderPostal, setSenderPostal] = useState("65000");
 
-  // Recipient info (center)
   const [recipientTitle, setRecipientTitle] = useState(
-    "ผู้อำนายการโรงเรียนอุทัยธานีวิทยาคม"
+    "ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม"
   );
   const [recipientAddress, setRecipientAddress] = useState(
     "55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง"
@@ -40,53 +41,57 @@ export default function DocumentEditor() {
     useState("จังหวัดอุทัยธานี");
   const [recipientPostal, setRecipientPostal] = useState("61000");
 
-  // Stamp info (top right)
   const [stampText, setStampText] = useState(
-    "ชำระค่าฝากส่งเป็นรายเดือน\nในอนุญาตเลขที่ ๕๕/๒๕๒๓\nพิษณุโลก"
+    "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ ๘๕/๒๕๒๑\nพิษณุโลก"
   );
 
   const handleDownload = async () => {
-    // Create PDF with A4 size
     const pdf = new jsPDF({
       orientation: isLandscape ? "landscape" : "portrait",
       unit: "mm",
       format: "a4",
     });
 
-    // A4 dimensions: 210mm x 297mm (portrait), 297mm x 210mm (landscape)
     const pageWidth = isLandscape ? 297 : 210;
     const pageHeight = isLandscape ? 210 : 297;
     const margin = 20; // 2cm margin
 
-    // 💡 การแก้ไข 3: ตั้งค่าฟอนต์เริ่มต้นให้เป็น TH Sarabun New
+    // ตั้งค่าฟอนต์เริ่มต้นให้เป็น TH Sarabun New (normal)
     pdf.setFont(SARABUN_FONT, "normal");
 
-    // Draw Garuda Emblem placeholder (top left)
-    pdf.setFontSize(8);
-    // pdf.text("[ตราครุฑ]", margin, margin + 5); // ลบออกตามการปรับแก้ก่อนหน้า
+    // --- 1. ตราครุฑ
+    const emblemX = margin + 15;
+    const emblemY = margin + 15;
+    pdf.circle(emblemX, emblemY, 7);
 
-    // Draw circle for Garuda
-    pdf.circle(margin + 8, margin + 15, 5);
-
-    // Sender Info (top left, below emblem)
+    // --- 2. ที่อยู่ผู้ส่ง (18px)
     const senderX = margin;
-    let senderY = margin + 35;
+    let senderY = margin + 45;
+    const lineSpacing = 8;
+
+    // ตั้งค่าขนาดฟอนต์ 18px สำหรับผู้ส่ง
+    pdf.setFontSize(18);
+
+    // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
+    pdf.setFont(SARABUN_FONT, "bold");
+    pdf.text(documentNumber, senderX, senderY);
+    senderY += lineSpacing;
+
+    // ส่วนที่เหลือ: องค์กร ที่อยู่ (Normal)
+    pdf.setFont(SARABUN_FONT, "normal");
     const senderLines = [
-      documentNumber,
       senderOrg,
       senderUniversity,
       senderAddress1,
       senderAddress2,
       senderPostal,
     ];
-
-    pdf.setFontSize(16);
     senderLines.forEach((line) => {
       pdf.text(line, senderX, senderY);
-      senderY += 7;
+      senderY += lineSpacing;
     });
 
-    // Stamp Box (top right)
+    // --- 3. ตราประทับ (Stamp Box)
     const stampWidth = 60;
     const stampHeight = 30;
     const stampX = pageWidth - margin - stampWidth;
@@ -103,26 +108,45 @@ export default function DocumentEditor() {
       stampTextY += 6;
     });
 
-    // Recipient Section (center-right)
-    const recipientX = isLandscape ? pageWidth * 0.55 : pageWidth * 0.45;
-    const recipientY = pageHeight / 2 - 20;
+    // --- 4. ผู้รับ (26px, Bold ทั้งหมด) ---
 
-    pdf.setFontSize(20);
-    // 💡 ฟอนต์ปกติสำหรับข้อความ "เรียน" และชื่อ/ที่อยู่ผู้รับ
-    pdf.setFont(SARABUN_FONT, "normal");
+    // 💡 การแก้ไข 1: เลื่อนบล็อกทั้งหมดไปทางซ้ายมากขึ้น (จาก 45% เป็น 30%)
+    const recipientBaseX = pageWidth * 0.3;
+    const recipientBaseY = pageHeight * 0.55;
+    const recipientLineSpacing = 12;
+
+    pdf.setFontSize(26);
+    pdf.setFont(SARABUN_FONT, "bold");
 
     const recipientLabel = "เรียน";
-    const recipientLabelWidth = pdf.getTextWidth(recipientLabel);
-    pdf.text(recipientLabel, recipientX, recipientY);
-    pdf.text(recipientTitle, recipientX + recipientLabelWidth + 10, recipientY);
 
-    pdf.text(recipientAddress, recipientX, recipientY + 10);
-    pdf.text(recipientProvince, recipientX, recipientY + 20);
+    // 💡 การแก้ไข 2a: พิมพ์ "เรียน" ที่จุดเริ่มต้น (คอลัมน์ซ้าย)
+    pdf.text(recipientLabel, recipientBaseX, recipientBaseY);
 
-    // 💡 การแก้ไข 4: ตั้งค่าฟอนต์เป็น 'bold' สำหรับรหัสไปรษณีย์ 61000
-    pdf.setFont(SARABUN_FONT, "bold");
-    pdf.setFontSize(24);
-    pdf.text(recipientPostal, recipientX, recipientY + 35);
+    // 💡 การแก้ไข 2b: คำนวณจุดเริ่มต้นสำหรับคอลัมน์รายละเอียด
+    const labelWidth = pdf.getTextWidth(recipientLabel);
+    const detailGap = 8; // ระยะห่าง 8mm
+    const recipientDetailX = recipientBaseX + labelWidth + detailGap;
+
+    // บรรทัดที่ 1: ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม (คอลัมน์ขวา)
+    pdf.text(recipientTitle, recipientDetailX, recipientBaseY);
+
+    // บรรทัดที่ 2: ที่อยู่ (คอลัมน์ขวา)
+    pdf.text(
+      recipientAddress,
+      recipientDetailX,
+      recipientBaseY + recipientLineSpacing
+    );
+
+    // บรรทัดที่ 3: จังหวัด (คอลัมน์ขวา)
+    pdf.text(
+      recipientProvince,
+      recipientDetailX,
+      recipientBaseY + recipientLineSpacing * 2
+    );
+
+    // บรรทัดที่ 4: รหัสไปรษณีย์ (คอลัมน์ขวา)
+    pdf.text(recipientPostal, recipientDetailX, recipientBaseY + 39);
 
     // Save PDF
     pdf.save("envelope-label.pdf");
@@ -145,7 +169,7 @@ export default function DocumentEditor() {
             </div>
             <button
               onClick={() => setIsLandscape(!isLandscape)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:-bg-gray-600 transition-colors"
             >
               <RotateCw className="w-4 h-4" />
               {isLandscape ? "Portrait" : "Landscape"}
@@ -160,7 +184,7 @@ export default function DocumentEditor() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content: ใช้ JSX เดิม */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
           {/* Paper Preview Panel */}
           <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -178,7 +202,7 @@ export default function DocumentEditor() {
                 } p-8 lg:p-12`}
               >
                 {/* Thai Garuda Emblem - Top Left */}
-                <div className="absolute top-4 lg:top-8 left-4 lg:left-12 w-12 lg:w-16 h-16 lg:h-20">
+                <div className="absolute top-4 lg:top-8 left-12 lg:left-20 w-12 lg:w-16 h-16 lg:h-20">
                   <svg viewBox="0 0 100 120" className="w-full h-full">
                     <circle
                       cx="50"
@@ -220,7 +244,7 @@ export default function DocumentEditor() {
                 </div>
 
                 {/* Sender Info - Top Left under emblem */}
-                <div className="absolute top-24 lg:top-32 left-4 lg:left-12 text-left max-w-[45%]">
+                <div className="absolute top-32 lg:top-40 left-4 lg:left-12 text-left max-w-[45%]">
                   <div className="space-y-0.5 lg:space-y-1 text-gray-900 dark:text-gray-100">
                     <div className="font-normal text-xs lg:text-base leading-relaxed">
                       {documentNumber}
@@ -244,19 +268,19 @@ export default function DocumentEditor() {
                 </div>
 
                 {/* Recipient Section - Center Right */}
-                <div className="absolute top-1/2 left-1/2 -translate-y-1/2 text-center min-w-[280px] lg:min-w-[400px]">
+                <div className="absolute top-1/2 left-[45%] -translate-y-1/2 text-left min-w-[280px] lg:min-w-[400px]">
                   <div className="space-y-2 lg:space-y-3 text-gray-900 dark:text-gray-100">
                     <div className="text-base lg:text-xl font-normal mb-2 lg:mb-4">
                       เรียน{" "}
                       <span className="ml-2 lg:ml-4">{recipientTitle}</span>
                     </div>
-                    <div className="text-base lg:text-xl font-normal leading-relaxed text-center">
+                    <div className="text-base lg:text-xl font-normal leading-relaxed text-left">
                       {recipientAddress}
                     </div>
-                    <div className="text-base lg:text-xl font-normal leading-relaxed text-center">
+                    <div className="text-base lg:text-xl font-normal leading-relaxed text-left">
                       {recipientProvince}
                     </div>
-                    <div className="text-base lg:text-xl font-bold leading-relaxed text-center mt-2 lg:mt-4">
+                    <div className="text-base lg:text-xl font-bold leading-relaxed text-left mt-2 lg:mt-4">
                       {recipientPostal}
                     </div>
                   </div>
@@ -432,8 +456,7 @@ export default function DocumentEditor() {
                 <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                   <p className="text-xs text-blue-800 dark:text-blue-300">
                     <strong>หมายเหตุ:</strong> ไฟล์ PDF จะใช้ฟอนต์ **TH Sarabun
-                    New** ที่ถูกฝังไว้แล้ว โปรดตรวจสอบว่าไฟล์
-                    **`thsarabunnew-normal.js`** และ **`thsarabunnew-bold.js`**
+                    New** ที่ถูกฝังไว้แล้ว โปรดตรวจสอบว่าไฟล์ฟอนต์ .js
                     ถูกนำเข้าอย่างถูกต้อง
                   </p>
                 </div>
