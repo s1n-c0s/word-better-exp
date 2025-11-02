@@ -344,7 +344,6 @@ export default function DocumentEditor() {
 
   // 💡 ไม่จำเป็นต้องใช้ toggleLabel แล้ว
   // const toggleLabel = isStampEnabled ? "ต้องการปิดการใช้งาน" : "ต้องการเปิดใช้งาน";
-
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
       <div className="h-full flex flex-col">
@@ -375,7 +374,7 @@ export default function DocumentEditor() {
           {/* Preview Panel */}
           <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
             <div
-              className={`transition-all bg-white shadow-lg 
+              className={`transition-all bg-white shadow-xl border-4 border-blue-400/50 
                 w-full max-w-[95%] aspect-[1.414/1] 
                 p-2`}
             >
@@ -398,7 +397,9 @@ export default function DocumentEditor() {
             <div className="p-4 lg:p-6">
               <div className="max-w-xl mx-auto space-y-4 lg:space-y-6">
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
-                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
+                  {" "}
+                  {/* 💡 Heading สีน้ำเงิน */}
                   ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                 </h2>
                 <textarea
@@ -417,7 +418,9 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
-                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3">
+                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 mt-6 mb-3 border-b border-blue-100 pb-1">
+                  {" "}
+                  {/* 💡 Heading สีน้ำเงิน */}
                   ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
@@ -444,12 +447,14 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
-                <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3">
+                <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 mt-6 mb-3 border-b border-purple-100 pb-1">
+                  {" "}
+                  {/* 💡 Heading สีม่วง */}
                   ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                 </h2>
 
-                {/* 💡 เปลี่ยนจาก div/button เป็น Switch Component */}
-                <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+                {/* 💡 Switch Component Area - พื้นหลังสีม่วงอ่อน */}
+                <div className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800">
                   <label
                     htmlFor="stamp-toggle"
                     className="text-sm font-semibold text-gray-900 dark:text-gray-100"
@@ -463,7 +468,6 @@ export default function DocumentEditor() {
                     onCheckedChange={handleSwitchChange}
                   />
                 </div>
-                {/* สิ้นสุดการใช้ Switch */}
 
                 <div className="space-y-2 lg:space-y-3 pt-3">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -479,7 +483,7 @@ export default function DocumentEditor() {
                             ${
                               !isStampEnabled
                                 ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-                                : "bg-white dark:bg-gray-700 text-gray-900 focus:ring-2 focus:ring-blue-500"
+                                : "bg-white dark:bg-gray-700 text-gray-900 focus:ring-4 focus:ring-purple-300 border-2 border-purple-300/50" // 💡 เพิ่ม Focus Ring และ Border สีม่วง
                             }
                         `}
                   />
