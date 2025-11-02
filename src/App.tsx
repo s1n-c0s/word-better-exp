@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText } from "lucide-react";
 import jsPDF from "jspdf";
+import { Switch } from "@/components/ui/switch"; // 💡 นำเข้า Switch
+
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
@@ -8,7 +10,7 @@ import "./fonts/thsarabunnew-bold.js";
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
-const SENDER_LINES_PER_BLOCK = 6;
+// const SENDER_LINES_PER_BLOCK = 6;
 
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
 interface RecipientData {
@@ -138,8 +140,11 @@ export default function DocumentEditor() {
     // เราไม่ต้องทำอะไรกับมันอีก เพราะ generatePdfDataUri จะใช้ค่านี้โดยตรง
   };
 
-  const handleToggleChange = () => {
-    setDisableStamp((prev) => !prev);
+  // 💡 แก้ไข: Handler ใหม่สำหรับ shadcn/ui Switch
+  const handleSwitchChange = (checked: boolean) => {
+    // checked = true หมายถึงต้องการให้ Stamp ใช้งานได้
+    // เราใช้ disableStamp, ดังนั้นต้องเซ็ตเป็นค่าตรงข้าม
+    setDisableStamp(!checked);
   };
 
   useEffect(() => {
@@ -336,9 +341,9 @@ export default function DocumentEditor() {
 
   // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
-  const toggleLabel = isStampEnabled
-    ? "ต้องการปิดการใช้งาน"
-    : "ต้องการเปิดใช้งาน";
+
+  // 💡 ไม่จำเป็นต้องใช้ toggleLabel แล้ว
+  // const toggleLabel = isStampEnabled ? "ต้องการปิดการใช้งาน" : "ต้องการเปิดใช้งาน";
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
@@ -443,23 +448,22 @@ export default function DocumentEditor() {
                   ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                 </h2>
 
-                {/* Toggle and Input Area */}
+                {/* 💡 เปลี่ยนจาก div/button เป็น Switch Component */}
                 <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
-                  <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                  <label
+                    htmlFor="stamp-toggle"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                  >
                     สถานะตราประทับ: **
                     {isStampEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
                   </label>
-                  <button
-                    onClick={handleToggleChange}
-                    className={`px-4 py-1 rounded-full text-xs font-medium transition-colors ${
-                      isStampEnabled
-                        ? "bg-purple-600 text-white hover:bg-purple-700"
-                        : "bg-gray-300 text-gray-800 hover:bg-gray-400 dark:bg-gray-500 dark:text-gray-100"
-                    }`}
-                  >
-                    {toggleLabel}
-                  </button>
+                  <Switch
+                    id="stamp-toggle"
+                    checked={isStampEnabled}
+                    onCheckedChange={handleSwitchChange}
+                  />
                 </div>
+                {/* สิ้นสุดการใช้ Switch */}
 
                 <div className="space-y-2 lg:space-y-3 pt-3">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
