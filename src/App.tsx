@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText } from "lucide-react";
 import jsPDF from "jspdf";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@/components/ui/switch"; // 💡 นำเข้า Switch
+import { Button } from "@/components/ui/button"; // 💡 นำเข้า Button Component
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
@@ -366,13 +367,16 @@ export default function DocumentEditor() {
             <div className="text-xs text-gray-600 dark:text-gray-400 mr-2 hidden sm:block">
               Export: PDF ({recipientsData.length} Pages)
             </div>
-            <button
+            {/* 💡 ใช้ Button Component สำหรับ Download */}
+            <Button
               onClick={handleDownload}
-              className="inline-flex items-center gap-2 px-3 py-2.5 text-medium  font-bold bg-black text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="font-bold bg-black text-white hover:bg-blue-700 transition-colors"
+              variant="default" // หรือ 'secondary'
+              size="default" // เพื่อให้ดูเด่น
             >
               <Download className="w-5 h-5" />
               Download PDF
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -408,12 +412,15 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
-                  <button
+                  {/* 💡 ใช้ Button Component */}
+                  <Button
                     onClick={() => fillExampleData("sender")}
-                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700"
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
                   >
                     กรอกข้อมูลตัวอย่าง
-                  </button>
+                  </Button>
                 </div>
                 <textarea
                   value={senderInput}
@@ -435,12 +442,15 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                   </h2>
-                  <button
+                  {/* 💡 ใช้ Button Component */}
+                  <Button
                     onClick={() => fillExampleData("recipient")}
-                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700"
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
                   >
                     กรอกข้อมูลตัวอย่าง
-                  </button>
+                  </Button>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
@@ -470,12 +480,15 @@ export default function DocumentEditor() {
                   <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 border-b border-purple-100 pb-1">
                     ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                   </h2>
-                  <button
+                  {/* 💡 ใช้ Button Component */}
+                  <Button
                     onClick={() => fillExampleData("stamp")}
-                    className="text-xs font-semibold text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-200 transition-colors px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700"
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-200 transition-colors"
                   >
                     ใช้ข้อความเริ่มต้น
-                  </button>
+                  </Button>
                 </div>
 
                 {/* 💡 Switch Component Area - พื้นหลังสีม่วงอ่อน */}
