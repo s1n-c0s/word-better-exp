@@ -7,9 +7,7 @@ import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
-// 💡 เปลี่ยนจำนวนบรรทัดต่อบล็อกผู้รับเป็น 4 บรรทัด
 const RECIPIENT_LINES_PER_BLOCK = 4;
-// 💡 จำนวนบรรทัดต่อบล็อกผู้ส่งคือ 6 บรรทัด
 const SENDER_LINES_PER_BLOCK = 6;
 
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
@@ -31,39 +29,39 @@ interface SenderData {
 }
 
 // กำหนดข้อความตราประทับมาตรฐานเป็นค่าคงที่
+// 💡 MOCKUP STAMP: ใช้ชื่อ "ตำบล" แทนชื่อจริง
 const DEFAULT_STAMP_TEXT =
-  "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ ๘๕/๒๕๒๑\nพิษณุโลก";
+  "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ XXX/XXXX\nตำบลต้นทาง";
 
-// โครงสร้างข้อมูลเริ่มต้น
+// 💡 MOCKUP SENDER: ใช้ชื่อตำแหน่ง/ที่อยู่
 const initialSender: SenderData = {
-  documentNumber: "ที่ อว. 0603.32.01/ว 249",
-  senderOrg: "วิทยาลัยเพื่อการค้นคว้าระดับรากฐาน",
-  senderUniversity: "มหาวิทยาลัยนเรศวร",
-  senderAddress1: "เลขที่ 99 หมู่ที่ 9 ตำบลท่าโพธิ์",
-  senderAddress2: "อำเภอเมือง จังหวัดพิษณุโลก",
-  senderPostal: "65000",
+  documentNumber: "ที่ [รหัสหน่วยงาน] [เลขที่]",
+  senderOrg: "ชื่อหน่วยงานผู้ส่ง",
+  senderUniversity: "ชื่อมหาวิทยาลัย/สถาบัน",
+  senderAddress1: "เลขที่/หมู่ที่ ตำบลต้นทาง",
+  senderAddress2: "อำเภอเมือง จังหวัดต้นทาง",
+  senderPostal: "10000",
 };
 
+// 💡 MOCKUP RECIPIENTS: ใช้ชื่อตำแหน่ง/ที่อยู่ และเน้นชื่อ "ตำบล"
 const initialRecipients: RecipientData[] = [
   {
-    recipientTitle: "ผู้อำนวยการโรงเรียนอุทัยธานีวิทยาคม",
-    recipientAddress: "55 หมู่ 2 ตำบลสะแกกรัง อำเภอเมือง",
-    recipientProvince: "จังหวัดอุทัยธานี",
-    recipientPostal: "61000",
+    recipientTitle: "ตำแหน่ง/ชื่อผู้รับ (ชุดที่ 1)",
+    recipientAddress: "เลขที่/หมู่ที่ ตำบลปลายทางหนึ่ง อำเภอเมือง",
+    recipientProvince: "จังหวัดปลายทาง",
+    recipientPostal: "10000",
   },
 ];
 
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
 
-  // 💡 NEW STATE: ข้อมูลผู้ส่งชุดเดียว
   const [senderData, setSenderData] = useState<SenderData>(initialSender);
-  const [senderInput, setSenderInput] = useState(""); // Input Box ผู้ส่ง
+  const [senderInput, setSenderInput] = useState("");
 
-  // State ข้อมูลผู้รับหลายชุด
   const [recipientsData, setRecipientsData] =
     useState<RecipientData[]>(initialRecipients);
-  const [recipientInput, setRecipientInput] = useState(""); // Input Box ผู้รับ
+  const [recipientInput, setRecipientInput] = useState("");
 
   const [manualStampInput, setManualStampInput] = useState(
     DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n")
@@ -72,7 +70,7 @@ export default function DocumentEditor() {
   const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
-  // 💡 NEW LOGIC: Parse ข้อมูลผู้ส่ง (6 บรรทัด)
+  // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
     const lines = input.split("\n").map((line: string) => line.trim());
 
@@ -88,7 +86,7 @@ export default function DocumentEditor() {
     }
   }, []);
 
-  // 💡 NEW LOGIC: Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
+  // Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
   const parseRecipientInput = useCallback((input: string) => {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
@@ -96,7 +94,6 @@ export default function DocumentEditor() {
     for (let i = 0; i < lines.length; i += RECIPIENT_LINES_PER_BLOCK) {
       const block = lines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
 
-      // ตรวจสอบว่ามี 4 บรรทัดและมีชื่อผู้รับ (บรรทัดที่ 1 ของบล็อก)
       if (block.length === RECIPIENT_LINES_PER_BLOCK && block[0].trim()) {
         newRecipients.push({
           recipientTitle: block[0] || "",
@@ -148,7 +145,7 @@ export default function DocumentEditor() {
     setStampText(newStampText);
   }, [disableStamp, manualStampInput]);
 
-  // Initial Load: สร้างข้อมูลเริ่มต้น
+  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
   useEffect(() => {
     // 1. ข้อมูลผู้ส่ง (6 บรรทัด)
     const defaultSenderData = [
@@ -162,13 +159,18 @@ export default function DocumentEditor() {
     setSenderInput(defaultSenderData);
     parseSenderInput(defaultSenderData);
 
-    // 2. ข้อมูลผู้รับ (4 บรรทัด)
-    const defaultRecipientData = [
-      initialRecipients[0].recipientTitle,
-      initialRecipients[0].recipientAddress,
-      initialRecipients[0].recipientProvince,
-      initialRecipients[0].recipientPostal,
-    ].join("\n");
+    // 2. ข้อมูลผู้รับ (4 บรรทัด) - สร้าง String จาก Mockup 2 ชุด
+    const defaultRecipientData = initialRecipients
+      .map((r) =>
+        [
+          r.recipientTitle,
+          r.recipientAddress,
+          r.recipientProvince,
+          r.recipientPostal,
+        ].join("\n")
+      )
+      .join("\n\n"); // คั่นด้วยบรรทัดว่าง 2 บรรทัดเพื่อแยกชุดข้อมูล
+
     setRecipientInput(defaultRecipientData);
     parseRecipientInput(defaultRecipientData);
 
@@ -189,7 +191,6 @@ export default function DocumentEditor() {
     const pageHeight = 210;
     const margin = 20;
 
-    // 💡 ดึงข้อมูลผู้ส่งจาก State ชุดเดียว
     const sender = senderData;
 
     recipientsData.forEach((data, index) => {
@@ -204,7 +205,7 @@ export default function DocumentEditor() {
 
       // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
       const senderX = margin;
-      let senderY = margin + 40;
+      let senderY = margin + 42;
       const lineSpacing = 8;
 
       pdf.setFontSize(18);
@@ -297,7 +298,7 @@ export default function DocumentEditor() {
     });
 
     return pdf.output("datauristring");
-  }, [recipientsData, stampText, senderData]); // 💡 เพิ่ม senderData ใน Dependencies
+  }, [recipientsData, stampText, senderData]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
   useEffect(() => {
@@ -335,7 +336,7 @@ export default function DocumentEditor() {
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h2 className="text-[22px] font-semibold text-gray-900 dark:text-gray-100">
-              Thai Official Envelope Label Editor (Multi-Recipient)
+              Envelope Label Editor (Multi-Recipient)
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -391,8 +392,8 @@ export default function DocumentEditor() {
 1. เลขที่หนังสือ
 2. หน่วยงานผู้ส่ง
 3. สถาบัน/มหาวิทยาลัย
-4. ที่อยู่ บรรทัด 1
-5. ที่อยู่ บรรทัด 2
+4. ที่อยู่ บรรทัด 1 (มีชื่อตำบล)
+5. ที่อยู่ บรรทัด 2 (มีชื่อจังหวัด)
 6. รหัสไปรษณีย์ผู้ส่ง
                   `.trim()}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
@@ -412,12 +413,15 @@ export default function DocumentEditor() {
                   placeholder={`
 ชุดที่ 1 (4 บรรทัด)
 1. ชื่อ/หน่วยงานผู้รับ
-2. ที่อยู่ผู้รับ
+2. ที่อยู่ผู้รับ (มีชื่อตำบล)
 3. จังหวัดผู้รับ
 4. รหัสไปรษณีย์ผู้รับ
 
 ชุดที่ 2 (4 บรรทัด)
-1. ชื่อ/หน่วยงานผู้รับ...
+1. ชื่อ/หน่วยงานผู้รับ
+2. ที่อยู่ผู้รับ (มีชื่อตำบล)
+3. จังหวัดผู้รับ
+4. รหัสไปรษณีย์ผู้รับ
                   `.trim()}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
                 />
