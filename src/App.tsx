@@ -204,7 +204,7 @@ export default function DocumentEditor() {
 
       // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
       const senderX = margin;
-      let senderY = margin + 45;
+      let senderY = margin + 40;
       const lineSpacing = 8;
 
       pdf.setFontSize(18);
@@ -268,7 +268,7 @@ export default function DocumentEditor() {
 
       // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
       const recipientBaseX = pageWidth * 0.3;
-      const recipientBaseY = pageHeight * 0.55;
+      const recipientBaseY = pageHeight * 0.6;
       const recipientLineSpacing = 12;
 
       pdf.setFontSize(26);
