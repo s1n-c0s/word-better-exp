@@ -8,7 +8,7 @@ import "./fonts/thsarabunnew-bold.js";
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
-const SENDER_LINES_PER_BLOCK = 6;
+// const SENDER_LINES_PER_BLOCK = 6;
 
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
 interface RecipientData {
@@ -70,29 +70,35 @@ export default function DocumentEditor() {
   const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
-  // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
+  // 💡 การแก้ไข: Parse ข้อมูลผู้ส่ง (6 บรรทัด) โดยกรองบรรทัดว่างออก
   const parseSenderInput = useCallback((input: string) => {
-    const lines = input.split("\n").map((line: string) => line.trim());
+    // กรองบรรทัดว่างออกก่อน เพื่อให้ข้อมูลจัดเรียงขึ้นมา
+    const lines = input
+      .split("\n")
+      .map((line: string) => line.trim())
+      .filter((line) => line.length > 0);
 
-    if (lines.length >= SENDER_LINES_PER_BLOCK) {
-      setSenderData({
-        documentNumber: lines[0] || "",
-        senderOrg: lines[1] || "",
-        senderUniversity: lines[2] || "",
-        senderAddress1: lines[3] || "",
-        senderAddress2: lines[4] || "",
-        senderPostal: lines[5] || "",
-      });
-    }
+    // ใช้ข้อมูล 6 บรรทัดแรกที่ถูกจัดเรียงแล้ว
+    setSenderData({
+      documentNumber: lines[0] || "",
+      senderOrg: lines[1] || "",
+      senderUniversity: lines[2] || "",
+      senderAddress1: lines[3] || "",
+      senderAddress2: lines[4] || "",
+      senderPostal: lines[5] || "",
+    });
   }, []);
 
-  // Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
+  // 💡 การแก้ไข: Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด) โดยกรองบรรทัดว่างออก
   const parseRecipientInput = useCallback((input: string) => {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
 
-    for (let i = 0; i < lines.length; i += RECIPIENT_LINES_PER_BLOCK) {
-      const block = lines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
+    // ลบค่าว่างที่เกิดจากการเว้นบรรทัดระหว่างชุดข้อมูลออกก่อนการวนลูป
+    const trimmedLines = lines.filter((line) => line.length > 0);
+
+    for (let i = 0; i < trimmedLines.length; i += RECIPIENT_LINES_PER_BLOCK) {
+      const block = trimmedLines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
 
       if (block.length === RECIPIENT_LINES_PER_BLOCK && block[0].trim()) {
         newRecipients.push({
