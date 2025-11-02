@@ -202,13 +202,8 @@ export default function DocumentEditor() {
     });
     
     // 3. Generate and Download
-    // FIX: รับ Buffer (Uint8Array) โดยตรง
-    const buffer = await Packer.toBuffer(doc);
-    
-    // FIX: สร้าง Blob จาก Uint8Array โดยตรง (แก้ปัญหา TypeScript/SharedArrayBuffer)
-    const docxBlob = new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    });
+    // FIX: ใช้ Packer.toBlob(doc) เพื่อหลีกเลี่ยงปัญหา Buffer Type Mismatch
+    const docxBlob = await Packer.toBlob(doc);
     
     FileSaver.saveAs(docxBlob, 'envelope-label.docx');
   };
