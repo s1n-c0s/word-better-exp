@@ -570,6 +570,7 @@ export default function DocumentEditor() {
                       onCheckedChange={(checked) =>
                         setGreetingPosition(checked ? "top" : "left")
                       }
+                      className="data-[state=checked]:bg-green-500"
                     />
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
