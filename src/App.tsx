@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText } from "lucide-react";
 import jsPDF from "jspdf";
-import { Switch } from "@/components/ui/switch"; // 💡 นำเข้า Switch
+import { Switch } from "@/components/ui/switch";
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
@@ -10,7 +10,6 @@ import "./fonts/thsarabunnew-bold.js";
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
-// const SENDER_LINES_PER_BLOCK = 6;
 
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
 interface RecipientData {
@@ -31,12 +30,11 @@ interface SenderData {
 }
 
 // กำหนดข้อความตราประทับมาตรฐานเป็นค่าคงที่
-// 💡 MOCKUP STAMP: ใช้ชื่อ "ตำบล" แทนชื่อจริง
 const DEFAULT_STAMP_TEXT = `ชำระค่าฝากส่งเป็นรายเดือน
 ใบอนุญาตเลขที่ XXX/XXXX
 ตำบลต้นทาง`;
 
-// 💡 MOCKUP SENDER: ใช้ชื่อตำแหน่ง/ที่อยู่
+// 💡 MOCKUP SENDER: ใช้ข้อมูลดั้งเดิมตามที่ร้องขอ
 const initialSender: SenderData = {
   documentNumber: "ที่ [รหัสหน่วยงาน] [เลขที่]",
   senderOrg: "ชื่อหน่วยงานผู้ส่ง",
@@ -46,7 +44,7 @@ const initialSender: SenderData = {
   senderPostal: "10000",
 };
 
-// 💡 MOCKUP RECIPIENTS: ใช้ชื่อตำแหน่ง/ที่อยู่ และเน้นชื่อ "ตำบล"
+// 💡 MOCKUP RECIPIENTS: ใช้ข้อมูลดั้งเดิมตามที่ร้องขอ
 const initialRecipients: RecipientData[] = [
   {
     recipientTitle: "ตำแหน่ง/ชื่อผู้รับ",
@@ -66,22 +64,18 @@ export default function DocumentEditor() {
     useState<RecipientData[]>(initialRecipients);
   const [recipientInput, setRecipientInput] = useState("");
 
-  // 💡 FIX 1: ลบการ Escape ออกเพื่อให้ textarea แสดงการขึ้นบรรทัดใหม่ที่ถูกต้อง
-  const [manualStampInput, setManualStampInput] = useState(
-    DEFAULT_STAMP_TEXT // ใช้ค่า DEFAULT_STAMP_TEXT โดยตรง
-  );
+  const [manualStampInput, setManualStampInput] = useState(DEFAULT_STAMP_TEXT);
 
   const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
-  // Parse ข้อมูลผู้ส่ง (6 บรรทัด) โดยกรองบรรทัดว่างออก
+  // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
     const lines = input
       .split("\n")
       .map((line: string) => line.trim())
       .filter((line) => line.length > 0);
 
-    // ใช้ข้อมูล 6 บรรทัดแรกที่ถูกจัดเรียงแล้ว
     setSenderData({
       documentNumber: lines[0] || "",
       senderOrg: lines[1] || "",
@@ -92,12 +86,11 @@ export default function DocumentEditor() {
     });
   }, []);
 
-  // Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด) โดยกรองบรรทัดว่างออก
+  // Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
   const parseRecipientInput = useCallback((input: string) => {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
 
-    // ลบค่าว่างที่เกิดจากการเว้นบรรทัดระหว่างชุดข้อมูลออกก่อนการวนลูป
     const trimmedLines = lines.filter((line) => line.length > 0);
 
     for (let i = 0; i < trimmedLines.length; i += RECIPIENT_LINES_PER_BLOCK) {
@@ -136,14 +129,10 @@ export default function DocumentEditor() {
   const handleManualStampChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setManualStampInput(value);
-    // 💡 Note: เมื่อค่าถูกพิมพ์ใน textarea (ซึ่งตอนนี้เป็น string ที่มี \n จริง)
-    // เราไม่ต้องทำอะไรกับมันอีก เพราะ generatePdfDataUri จะใช้ค่านี้โดยตรง
   };
 
-  // 💡 แก้ไข: Handler ใหม่สำหรับ shadcn/ui Switch
+  // Handler สำหรับ shadcn/ui Switch
   const handleSwitchChange = (checked: boolean) => {
-    // checked = true หมายถึงต้องการให้ Stamp ใช้งานได้
-    // เราใช้ disableStamp, ดังนั้นต้องเซ็ตเป็นค่าตรงข้าม
     setDisableStamp(!checked);
   };
 
@@ -151,7 +140,6 @@ export default function DocumentEditor() {
     let newStampText = "";
 
     if (!disableStamp) {
-      // 💡 Note: เมื่ออยู่ในโหมดใช้งาน manualStampInput คือ string ที่มี \n จริงแล้ว
       newStampText = manualStampInput;
     } else {
       newStampText = "";
@@ -160,22 +148,21 @@ export default function DocumentEditor() {
     setStampText(newStampText);
   }, [disableStamp, manualStampInput]);
 
-  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
-  useEffect(() => {
-    // 1. ข้อมูลผู้ส่ง (6 บรรทัด)
-    const defaultSenderData = [
-      initialSender.documentNumber,
-      initialSender.senderOrg,
-      initialSender.senderUniversity,
-      initialSender.senderAddress1,
-      initialSender.senderAddress2,
-      initialSender.senderPostal,
+  // สร้าง String ข้อมูลผู้ส่ง (6 บรรทัด)
+  const generateSenderString = (data: SenderData) => {
+    return [
+      data.documentNumber,
+      data.senderOrg,
+      data.senderUniversity,
+      data.senderAddress1,
+      data.senderAddress2,
+      data.senderPostal,
     ].join("\n");
-    setSenderInput(defaultSenderData);
-    parseSenderInput(defaultSenderData);
+  };
 
-    // 2. ข้อมูลผู้รับ (4 บรรทัด) - สร้าง String จาก Mockup 2 ชุด
-    const defaultRecipientData = initialRecipients
+  // สร้าง String ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
+  const generateRecipientString = (recipients: RecipientData[]) => {
+    return recipients
       .map((r) =>
         [
           r.recipientTitle,
@@ -184,18 +171,41 @@ export default function DocumentEditor() {
           r.recipientPostal,
         ].join("\n")
       )
-      .join("\n\n"); // คั่นด้วยบรรทัดว่าง 2 บรรทัดเพื่อแยกชุดข้อมูล
+      .join("\n\n");
+  };
 
-    setRecipientInput(defaultRecipientData);
-    parseRecipientInput(defaultRecipientData);
+  // --- ฟังก์ชัน: กรอกข้อมูลตัวอย่าง (ใช้ข้อมูล Mockup ดั้งเดิม) ---
+  const fillExampleData = (type: "sender" | "recipient" | "stamp") => {
+    if (type === "sender") {
+      const defaultSenderData = generateSenderString(initialSender);
+      setSenderInput(defaultSenderData);
+      parseSenderInput(defaultSenderData);
+    } else if (type === "recipient") {
+      const defaultRecipientData = generateRecipientString(initialRecipients);
+      setRecipientInput(defaultRecipientData);
+      parseRecipientInput(defaultRecipientData);
+    } else if (type === "stamp") {
+      setManualStampInput(DEFAULT_STAMP_TEXT);
+      setStampText(DEFAULT_STAMP_TEXT);
+      setDisableStamp(false); // เปิดใช้งาน Stamp ด้วย
+    }
+  };
+  // --- สิ้นสุดฟังก์ชัน ---
+
+  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
+  useEffect(() => {
+    // 1. ข้อมูลผู้ส่ง
+    fillExampleData("sender");
+
+    // 2. ข้อมูลผู้รับ
+    fillExampleData("recipient");
 
     // 3. ข้อมูลตราประทับ
-    // 💡 FIX 2: ลบการ Escape ออก
     setManualStampInput(DEFAULT_STAMP_TEXT);
     setStampText(DEFAULT_STAMP_TEXT);
   }, [parseSenderInput, parseRecipientInput]);
 
-  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า
+  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า (ไม่มีการเปลี่ยนแปลงในส่วนนี้)
   const generatePdfDataUri = useCallback(() => {
     const pdf = new jsPDF({
       orientation: "landscape",
@@ -249,7 +259,6 @@ export default function DocumentEditor() {
       if (stampText && stampText.trim().length > 0) {
         // ... Logic การวาดตราประทับ ...
         pdf.setFontSize(14);
-        // stampText คือ string ที่มี \n จริงแล้ว
         const stampLines = stampText.split("\n");
 
         const paddingX = 3;
@@ -392,14 +401,20 @@ export default function DocumentEditor() {
 
           {/* 💡 Input Panel ใหม่: แยกช่องกรอกผู้ส่ง/ผู้รับ */}
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
-            {/* 🎯 ปรับลด Padding จาก p-4/lg:p-6 เป็น p-3/lg:p-4 */}
             <div className="p-3 lg:p-4">
-              {/* 🎯 ปรับลด Space-Y จาก space-y-4/lg:space-y-6 เป็น space-y-3/lg:space-y-4 */}
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
-                  ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
-                </h2>
+                <div className="flex justify-between items-end">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
+                    ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
+                  </h2>
+                  <button
+                    onClick={() => fillExampleData("sender")}
+                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700"
+                  >
+                    กรอกข้อมูลตัวอย่าง
+                  </button>
+                </div>
                 <textarea
                   value={senderInput}
                   onChange={handleSenderChange}
@@ -416,11 +431,17 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
-                {/* 🎯 ปรับลด Margin Top/Bottom จาก mt-6/mb-3 เป็น mt-4/mb-2 */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 mt-4 mb-2 border-b border-blue-100 pb-1">
-                  ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
-                </h2>
-                {/* 🎯 ปรับลด Margin Bottom จาก mb-3 เป็น mb-2 */}
+                <div className="flex justify-between items-end pt-2">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
+                    ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
+                  </h2>
+                  <button
+                    onClick={() => fillExampleData("recipient")}
+                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700"
+                  >
+                    กรอกข้อมูลตัวอย่าง
+                  </button>
+                </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
                 </p>
@@ -445,10 +466,17 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
-                {/* 🎯 ปรับลด Margin Top/Bottom จาก mt-6/mb-3 เป็น mt-4/mb-2 */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 mt-4 mb-2 border-b border-purple-100 pb-1">
-                  ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
-                </h2>
+                <div className="flex justify-between items-end pt-2">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 border-b border-purple-100 pb-1">
+                    ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
+                  </h2>
+                  <button
+                    onClick={() => fillExampleData("stamp")}
+                    className="text-xs font-semibold text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-200 transition-colors px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700"
+                  >
+                    ใช้ข้อความเริ่มต้น
+                  </button>
+                </div>
 
                 {/* 💡 Switch Component Area - พื้นหลังสีม่วงอ่อน */}
                 <div className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800">
@@ -466,7 +494,6 @@ export default function DocumentEditor() {
                   />
                 </div>
 
-                {/* 🎯 ปรับลด Padding Top จาก pt-3 เป็น pt-2 */}
                 <div className="space-y-2 lg:space-y-3 pt-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     ข้อความตราประทับ (ป้อนข้อความตามปกติเพื่อขึ้นบรรทัดใหม่)
@@ -481,7 +508,7 @@ export default function DocumentEditor() {
                             ${
                               !isStampEnabled
                                 ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-                                : "bg-white dark:bg-gray-700 text-gray-900 focus:ring-4 focus:ring-purple-300 border-2 border-purple-300/50" // 💡 เพิ่ม Focus Ring และ Border สีม่วง
+                                : "bg-white dark:bg-gray-700 text-gray-900 focus:ring-4 focus:ring-purple-300 border-2 border-purple-300/50"
                             }
                         `}
                   />
