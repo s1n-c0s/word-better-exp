@@ -342,8 +342,6 @@ export default function DocumentEditor() {
   // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
 
-  // 💡 ไม่จำเป็นต้องใช้ toggleLabel แล้ว
-  // const toggleLabel = isStampEnabled ? "ต้องการปิดการใช้งาน" : "ต้องการเปิดใช้งาน";
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
       <div className="h-full flex flex-col">
@@ -394,12 +392,12 @@ export default function DocumentEditor() {
 
           {/* 💡 Input Panel ใหม่: แยกช่องกรอกผู้ส่ง/ผู้รับ */}
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
-            <div className="p-4 lg:p-6">
-              <div className="max-w-xl mx-auto space-y-4 lg:space-y-6">
+            {/* 🎯 ปรับลด Padding จาก p-4/lg:p-6 เป็น p-3/lg:p-4 */}
+            <div className="p-3 lg:p-4">
+              {/* 🎯 ปรับลด Space-Y จาก space-y-4/lg:space-y-6 เป็น space-y-3/lg:space-y-4 */}
+              <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
-                  {" "}
-                  {/* 💡 Heading สีน้ำเงิน */}
                   ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                 </h2>
                 <textarea
@@ -418,12 +416,12 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 mt-6 mb-3 border-b border-blue-100 pb-1">
-                  {" "}
-                  {/* 💡 Heading สีน้ำเงิน */}
+                {/* 🎯 ปรับลด Margin Top/Bottom จาก mt-6/mb-3 เป็น mt-4/mb-2 */}
+                <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 mt-4 mb-2 border-b border-blue-100 pb-1">
                   ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                {/* 🎯 ปรับลด Margin Bottom จาก mb-3 เป็น mb-2 */}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
                 </p>
                 <textarea
@@ -447,9 +445,8 @@ export default function DocumentEditor() {
                 />
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 mt-6 mb-3 border-b border-purple-100 pb-1">
-                  {" "}
-                  {/* 💡 Heading สีม่วง */}
+                {/* 🎯 ปรับลด Margin Top/Bottom จาก mt-6/mb-3 เป็น mt-4/mb-2 */}
+                <h2 className="text-lg lg:text-xl font-extrabold text-purple-700 dark:text-purple-400 mt-4 mb-2 border-b border-purple-100 pb-1">
                   ข้อมูลตราประทับ (ใช้ร่วมกันทุกหน้า)
                 </h2>
 
@@ -469,7 +466,8 @@ export default function DocumentEditor() {
                   />
                 </div>
 
-                <div className="space-y-2 lg:space-y-3 pt-3">
+                {/* 🎯 ปรับลด Padding Top จาก pt-3 เป็น pt-2 */}
+                <div className="space-y-2 lg:space-y-3 pt-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     ข้อความตราประทับ (ป้อนข้อความตามปกติเพื่อขึ้นบรรทัดใหม่)
                   </label>
