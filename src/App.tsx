@@ -182,9 +182,21 @@ export default function DocumentEditor() {
       setSenderInput(defaultSenderData);
       parseSenderInput(defaultSenderData);
     } else if (type === "recipient") {
-      const defaultRecipientData = generateRecipientString(initialRecipients);
-      setRecipientInput(defaultRecipientData);
-      parseRecipientInput(defaultRecipientData);
+      // 💡 การแก้ไข: เพิ่มชุดข้อมูลใหม่ต่อท้ายชุดเดิม
+      const newExampleData = generateRecipientString(initialRecipients);
+
+      let updatedInput = recipientInput.trim();
+
+      if (updatedInput.length > 0) {
+        // หากมีข้อมูลเดิมอยู่ ให้คั่นด้วย \n\n ก่อน แล้วต่อด้วยข้อมูลใหม่
+        updatedInput += "\n\n" + newExampleData;
+      } else {
+        // หากไม่มีข้อมูลเดิม ให้ใช้ข้อมูลใหม่เลย
+        updatedInput = newExampleData;
+      }
+
+      setRecipientInput(updatedInput);
+      parseRecipientInput(updatedInput);
     } else if (type === "stamp") {
       setManualStampInput(DEFAULT_STAMP_TEXT);
       setStampText(DEFAULT_STAMP_TEXT);
@@ -214,7 +226,10 @@ export default function DocumentEditor() {
     fillExampleData("sender");
 
     // 2. ข้อมูลผู้รับ
-    fillExampleData("recipient");
+    // 💡 การแก้ไข: ใช้การสร้าง string ดั้งเดิมเพื่อโหลดเพียง 1 ชุด
+    const defaultRecipientData = generateRecipientString(initialRecipients);
+    setRecipientInput(defaultRecipientData);
+    parseRecipientInput(defaultRecipientData);
 
     // 3. ข้อมูลตราประทับ
     setManualStampInput(DEFAULT_STAMP_TEXT);
@@ -423,7 +438,7 @@ export default function DocumentEditor() {
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <div className="flex justify-between items-end">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-500 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
                   <div className="flex gap-1">
@@ -444,7 +459,6 @@ export default function DocumentEditor() {
                       size="icon-sm"
                       title="เคลียร์ข้อมูลผู้ส่ง"
                     >
-                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -466,7 +480,7 @@ export default function DocumentEditor() {
 
                 {/* --- ส่วนข้อมูลผู้รับ (4 บรรทัดต่อชุด) --- */}
                 <div className="flex justify-between items-end pt-2">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-blue-500 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้รับ (Recipients - 4 บรรทัดต่อชุด)
                   </h2>
                   <div className="flex gap-1">
@@ -478,7 +492,7 @@ export default function DocumentEditor() {
                       size="sm"
                       className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
                     >
-                      กรอกข้อมูลตัวอย่าง
+                      เพิ่มชุดข้อมูลตัวอย่าง
                     </Button>
                     {/* ปุ่มเคลียร์ข้อมูล (Icon-only) */}
                     <Button
@@ -487,7 +501,6 @@ export default function DocumentEditor() {
                       size="icon-sm"
                       title="เคลียร์ข้อมูลผู้รับ"
                     >
-                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -538,7 +551,6 @@ export default function DocumentEditor() {
                       size="icon-sm"
                       title="เคลียร์ข้อความตราประทับ"
                     >
-                      {/* 💡 ลบ text-gray-500 dark:text-gray-400 ออก */}
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
