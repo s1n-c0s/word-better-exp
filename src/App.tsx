@@ -8,7 +8,7 @@ import "./fonts/thsarabunnew-bold.js";
 // TH Sarabun New font will be embedded
 const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
-// const SENDER_LINES_PER_BLOCK = 6;
+const SENDER_LINES_PER_BLOCK = 6;
 
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
 interface RecipientData {
@@ -30,8 +30,9 @@ interface SenderData {
 
 // กำหนดข้อความตราประทับมาตรฐานเป็นค่าคงที่
 // 💡 MOCKUP STAMP: ใช้ชื่อ "ตำบล" แทนชื่อจริง
-const DEFAULT_STAMP_TEXT =
-  "ชำระค่าฝากส่งเป็นรายเดือน\nใบอนุญาตเลขที่ XXX/XXXX\nตำบลต้นทาง";
+const DEFAULT_STAMP_TEXT = `ชำระค่าฝากส่งเป็นรายเดือน
+ใบอนุญาตเลขที่ XXX/XXXX
+ตำบลต้นทาง`;
 
 // 💡 MOCKUP SENDER: ใช้ชื่อตำแหน่ง/ที่อยู่
 const initialSender: SenderData = {
@@ -46,7 +47,7 @@ const initialSender: SenderData = {
 // 💡 MOCKUP RECIPIENTS: ใช้ชื่อตำแหน่ง/ที่อยู่ และเน้นชื่อ "ตำบล"
 const initialRecipients: RecipientData[] = [
   {
-    recipientTitle: "ตำแหน่ง/ชื่อผู้รับ (ชุดที่ 1)",
+    recipientTitle: "ตำแหน่ง/ชื่อผู้รับ",
     recipientAddress: "เลขที่/หมู่ที่ ตำบลปลายทางหนึ่ง อำเภอเมือง",
     recipientProvince: "จังหวัดปลายทาง",
     recipientPostal: "10000",
@@ -63,16 +64,16 @@ export default function DocumentEditor() {
     useState<RecipientData[]>(initialRecipients);
   const [recipientInput, setRecipientInput] = useState("");
 
+  // 💡 FIX 1: ลบการ Escape ออกเพื่อให้ textarea แสดงการขึ้นบรรทัดใหม่ที่ถูกต้อง
   const [manualStampInput, setManualStampInput] = useState(
-    DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n")
+    DEFAULT_STAMP_TEXT // ใช้ค่า DEFAULT_STAMP_TEXT โดยตรง
   );
 
   const [disableStamp, setDisableStamp] = useState(false);
   const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
 
-  // 💡 การแก้ไข: Parse ข้อมูลผู้ส่ง (6 บรรทัด) โดยกรองบรรทัดว่างออก
+  // Parse ข้อมูลผู้ส่ง (6 บรรทัด) โดยกรองบรรทัดว่างออก
   const parseSenderInput = useCallback((input: string) => {
-    // กรองบรรทัดว่างออกก่อน เพื่อให้ข้อมูลจัดเรียงขึ้นมา
     const lines = input
       .split("\n")
       .map((line: string) => line.trim())
@@ -89,7 +90,7 @@ export default function DocumentEditor() {
     });
   }, []);
 
-  // 💡 การแก้ไข: Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด) โดยกรองบรรทัดว่างออก
+  // Parse ข้อมูลผู้รับ (4 บรรทัดต่อชุด) โดยกรองบรรทัดว่างออก
   const parseRecipientInput = useCallback((input: string) => {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
@@ -133,6 +134,8 @@ export default function DocumentEditor() {
   const handleManualStampChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setManualStampInput(value);
+    // 💡 Note: เมื่อค่าถูกพิมพ์ใน textarea (ซึ่งตอนนี้เป็น string ที่มี \n จริง)
+    // เราไม่ต้องทำอะไรกับมันอีก เพราะ generatePdfDataUri จะใช้ค่านี้โดยตรง
   };
 
   const handleToggleChange = () => {
@@ -143,7 +146,8 @@ export default function DocumentEditor() {
     let newStampText = "";
 
     if (!disableStamp) {
-      newStampText = manualStampInput.replace(/\\n/g, "\n");
+      // 💡 Note: เมื่ออยู่ในโหมดใช้งาน manualStampInput คือ string ที่มี \n จริงแล้ว
+      newStampText = manualStampInput;
     } else {
       newStampText = "";
     }
@@ -181,7 +185,8 @@ export default function DocumentEditor() {
     parseRecipientInput(defaultRecipientData);
 
     // 3. ข้อมูลตราประทับ
-    setManualStampInput(DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n"));
+    // 💡 FIX 2: ลบการ Escape ออก
+    setManualStampInput(DEFAULT_STAMP_TEXT);
     setStampText(DEFAULT_STAMP_TEXT);
   }, [parseSenderInput, parseRecipientInput]);
 
@@ -239,6 +244,7 @@ export default function DocumentEditor() {
       if (stampText && stampText.trim().length > 0) {
         // ... Logic การวาดตราประทับ ...
         pdf.setFontSize(14);
+        // stampText คือ string ที่มี \n จริงแล้ว
         const stampLines = stampText.split("\n");
 
         const paddingX = 3;
@@ -457,13 +463,13 @@ export default function DocumentEditor() {
 
                 <div className="space-y-2 lg:space-y-3 pt-3">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    ข้อความตราประทับ (ใช้ `\n` สำหรับขึ้นบรรทัดใหม่)
+                    ข้อความตราประทับ (ป้อนข้อความตามปกติเพื่อขึ้นบรรทัดใหม่)
                   </label>
                   <textarea
                     value={manualStampInput}
                     onChange={handleManualStampChange}
                     rows={4}
-                    placeholder={DEFAULT_STAMP_TEXT.replace(/\n/g, "\\n")}
+                    placeholder={DEFAULT_STAMP_TEXT}
                     readOnly={!isStampEnabled}
                     className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md resize-none font-mono 
                             ${
