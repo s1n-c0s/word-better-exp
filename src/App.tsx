@@ -361,9 +361,9 @@ export default function DocumentEditor() {
             </div>
             <button
               onClick={handleDownload}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2.5 text-medium  font-bold bg-black text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-5 h-5" />
               Download PDF
             </button>
           </div>
