@@ -71,8 +71,9 @@ export default function DocumentEditor() {
 
   const [manualStampInput, setManualStampInput] = useState(DEFAULT_STAMP_TEXT);
 
-  const [disableStamp, setDisableStamp] = useState(false);
-  const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
+  // 💡 แก้ไข: ตั้งค่าเริ่มต้นให้เป็น true เพื่อให้ตราประทับถูกปิดใช้งาน (disabled) ตั้งแต่แรก
+  const [disableStamp, setDisableStamp] = useState(true);
+  const [stampText, setStampText] = useState(""); // ต้องตั้งค่าเริ่มต้นเป็น "" ด้วย
 
   // 💡 State สำหรับคำขึ้นต้น
   const [greetingText, setGreetingText] = useState("เรียน");
@@ -299,8 +300,9 @@ export default function DocumentEditor() {
     parseRecipientInput(defaultRecipientData);
 
     // 3. ข้อมูลตราประทับ
-    setManualStampInput(DEFAULT_STAMP_TEXT);
-    setStampText(DEFAULT_STAMP_TEXT);
+    // 💡 เนื่องจากตั้งค่า disableStamp = true ตั้งแต่เริ่มต้น จึงไม่จำเป็นต้องตั้งค่า manualStampInput ที่นี่
+    // setManualStampInput(DEFAULT_STAMP_TEXT);
+    // setStampText(DEFAULT_STAMP_TEXT);
 
     // 4. คำขึ้นต้น
     setGreetingText("เรียน");
