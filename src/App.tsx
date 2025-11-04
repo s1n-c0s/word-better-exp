@@ -117,21 +117,13 @@ export default function DocumentEditor() {
   // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
-    if (checked) {
-      toast.success("เปิดใช้งานตราประทับ");
-    } else {
-      toast("ปิดใช้งานตราประทับ", { icon: "🔒" });
-    }
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
   const handleLogoSwitchChange = (checked: boolean) => {
     setDisableLogo(!checked);
-    if (checked) {
-      toast.success("เปิดใช้งานโลโก้");
-    } else {
-      toast("ปิดใช้งานโลโก้", { icon: "🔒" });
-    }
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
@@ -161,15 +153,8 @@ export default function DocumentEditor() {
 
   // 💡 Handler สำหรับ Switch ตำแหน่งคำขึ้นต้น
   const handleGreetingPositionChange = (checked: boolean) => {
-    const newPosition = checked ? "top" : "left";
-    setGreetingPosition(newPosition);
-
-    const notiText =
-      newPosition === "top"
-        ? "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'เหนือผู้รับ'"
-        : "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'คอลัมน์ซ้าย'";
-
-    toast.success(notiText);
+    setGreetingPosition(checked ? "top" : "left");
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // --- Effects ---
@@ -434,10 +419,21 @@ export default function DocumentEditor() {
                 </h2>
 
                 {/* 💡 Logo Toggle Section */}
-                <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
+                <div
+                  className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer"
+                  onClick={() => {
+                    // ADDED onClick handler
+                    handleLogoSwitchChange(!isLogoEnabled);
+                    if (!isLogoEnabled) {
+                      toast.success("เปิดใช้งานโลโก้");
+                    } else {
+                      toast("ปิดใช้งานโลโก้", { icon: "🔒" });
+                    }
+                  }}
+                >
                   <label
                     htmlFor="logo-toggle"
-                    className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                   >
                     สถานะโลโก้: **
                     {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
@@ -465,7 +461,7 @@ export default function DocumentEditor() {
                       onChange={handleLogoUrlChange}
                       onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
                       disabled={!isLogoEnabled}
-                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
                       // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
                       className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
                             ${
@@ -615,8 +611,24 @@ export default function DocumentEditor() {
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
                   </p>
-                  <div className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800">
-                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  <div
+                    className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800 cursor-pointer"
+                    onClick={() => {
+                      // ADDED onClick handler
+                      const newChecked = greetingPosition === "left";
+                      handleGreetingPositionChange(newChecked);
+                      if (newChecked) {
+                        toast.success(
+                          "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'เหนือผู้รับ'"
+                        );
+                      } else {
+                        toast.success(
+                          "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'คอลัมน์ซ้าย'"
+                        );
+                      }
+                    }}
+                  >
+                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer">
                       ตำแหน่งคำขึ้นต้น: **
                       {greetingPosition === "left"
                         ? "คอลัมน์ซ้าย"
@@ -661,10 +673,21 @@ export default function DocumentEditor() {
                 </div>
 
                 {/* 💡 Switch Component Area - พื้นหลังสีม่วงอ่อน */}
-                <div className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800">
+                <div
+                  className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800 cursor-pointer"
+                  onClick={() => {
+                    // ADDED onClick handler
+                    handleSwitchChange(!isStampEnabled);
+                    if (!isStampEnabled) {
+                      toast.success("เปิดใช้งานตราประทับ");
+                    } else {
+                      toast("ปิดใช้งานตราประทับ", { icon: "🔒" });
+                    }
+                  }}
+                >
                   <label
                     htmlFor="stamp-toggle"
-                    className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                   >
                     สถานะตราประทับ: **
                     {isStampEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
@@ -673,6 +696,7 @@ export default function DocumentEditor() {
                     id="stamp-toggle"
                     checked={isStampEnabled}
                     onCheckedChange={handleSwitchChange}
+                    className="data-[state=checked]:bg-purple-500"
                   />
                 </div>
 
