@@ -12,6 +12,10 @@ import "./fonts/thsarabunnew-bold.js";
 const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
 
+// 💡 URL ตัวอย่างสำหรับโลโก้
+const EXAMPLE_LOGO_URL =
+  "https://cms-media.fda.moph.go.th/461152983531528192/2023/04/sGVDGVg2JneZ8UbNoMCKgJWJ.png";
+
 // กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
 interface RecipientData {
   recipientTitle: string;
@@ -160,6 +164,15 @@ export default function DocumentEditor() {
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
   const handleLogoUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
     setLogoUrl(e.target.value);
+  };
+
+  // 💡 Handler สำหรับกดปุ่ม Tab ในช่องกรอกโลโก้
+  const handleLogoInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Fill the example URL if the field is currently empty and Tab is pressed
+    if (e.key === "Tab" && !logoUrl) {
+      e.preventDefault();
+      setLogoUrl(EXAMPLE_LOGO_URL);
+    }
   };
 
   // 💡 Effect to calculate logo aspect ratio asynchronously
@@ -600,7 +613,8 @@ export default function DocumentEditor() {
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนโลโก้ (Logo) --- */}
                 <div className="flex justify-between items-end">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-teal-700 dark:text-teal-400 border-b border-teal-100 pb-1">
+                  {/* 💡 อัปเดต Heading */}
+                  <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
                     โลโก้ (Logo) **H: 23.5mm | W: Ratio**
                   </h2>
                   <Button
@@ -615,7 +629,7 @@ export default function DocumentEditor() {
                 </div>
 
                 {/* 💡 Logo Toggle Section */}
-                <div className="flex justify-between items-center bg-teal-100 dark:bg-teal-900/40 p-3 rounded-md border border-teal-300/50 dark:border-teal-800">
+                <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
                   <label
                     htmlFor="logo-toggle"
                     className="text-sm font-semibold text-gray-900 dark:text-gray-100"
@@ -627,7 +641,7 @@ export default function DocumentEditor() {
                     id="logo-toggle"
                     checked={isLogoEnabled} // Checked means enabled
                     onCheckedChange={handleLogoSwitchChange}
-                    className="data-[state=checked]:bg-teal-500"
+                    className="data-[state=checked]:bg-green-500"
                   />
                 </div>
                 {/* End Logo Toggle Section */}
@@ -641,6 +655,7 @@ export default function DocumentEditor() {
                     type="text"
                     value={logoUrl}
                     onChange={handleLogoUrlChange}
+                    onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
                     disabled={!isLogoEnabled}
                     placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
                     className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none
@@ -653,12 +668,12 @@ export default function DocumentEditor() {
                   />
                 </div>
 
-                {logoUrl && isLogoEnabled && (
+                {/* {logoUrl && isLogoEnabled && (
                   <p className="text-xs text-teal-600 dark:text-teal-400 font-medium whitespace-nowrap overflow-x-auto p-1 bg-teal-50 dark:bg-teal-900/40 rounded">
                     **Current URL:** {logoUrl} <br />
                     **Calculated Ratio (W/H):** {logoAspectRatio.toFixed(2)}
                   </p>
-                )}
+                )} */}
                 {/* --- สิ้นสุด โลโก้ --- */}
 
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
@@ -752,33 +767,11 @@ export default function DocumentEditor() {
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 outline-none"
                   />
 
-                  <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
-                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      ตำแหน่งคำขึ้นต้น: **
-                      {greetingPosition === "left"
-                        ? "คอลัมน์ซ้าย"
-                        : "เหนือผู้รับ"}
-                      **
-                    </label>
-                    <Switch
-                      checked={greetingPosition === "top"} // True คือ 'top'
-                      onCheckedChange={(checked) =>
-                        setGreetingPosition(checked ? "top" : "left")
-                      }
-                      className="data-[state=checked]:bg-green-500"
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
-                  </p>
-                </div>
-                {/* --- สิ้นสุด Greeting Control --- */}
-
-                <textarea
-                  value={recipientInput}
-                  onChange={handleRecipientChange}
-                  rows={10}
-                  placeholder={`
+                  <textarea
+                    value={recipientInput}
+                    onChange={handleRecipientChange}
+                    rows={10}
+                    placeholder={`
 ชุดที่ 1 (4 บรรทัด)
 1. ชื่อ/หน่วยงานผู้รับ
 2. ที่อยู่ผู้รับ (มีชื่อตำบล)
@@ -791,8 +784,29 @@ export default function DocumentEditor() {
 3. จังหวัดผู้รับ
 4. รหัสไปรษณีย์ผู้รับ
                   `.trim()}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
-                />
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
+                  />
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
+                  </p>
+                  <div className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800">
+                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      ตำแหน่งคำขึ้นต้น: **
+                      {greetingPosition === "left"
+                        ? "คอลัมน์ซ้าย"
+                        : "เหนือผู้รับ"}
+                      **
+                    </label>
+                    <Switch
+                      checked={greetingPosition === "top"} // True คือ 'top'
+                      onCheckedChange={(checked) =>
+                        setGreetingPosition(checked ? "top" : "left")
+                      }
+                      className="data-[state=checked]:bg-blue-500"
+                    />
+                  </div>
+                </div>
+                {/* --- สิ้นสุด Greeting Control --- */}
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
                 <div className="flex justify-between items-end pt-2">
