@@ -76,6 +76,15 @@ export default function DocumentEditor() {
     "left"
   ); // 'left' = คอลัมน์ซ้าย, 'top' = เหนือผู้รับ
 
+  // 💡 State สำหรับโลโก้ (URL string)
+  const [logoUrl, setLogoUrl] = useState<string>("");
+
+  // 💡 State สำหรับอัตราส่วนภาพ (width/height) Default: 1 (Square)
+  const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
+
+  // 💡 State สำหรับปิด/เปิด โลโก้
+  const [disableLogo, setDisableLogo] = useState(false);
+
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
     const lines = input
@@ -138,10 +147,44 @@ export default function DocumentEditor() {
     setManualStampInput(value);
   };
 
-  // Handler สำหรับ shadcn/ui Switch
+  // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
   };
+
+  // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
+  const handleLogoSwitchChange = (checked: boolean) => {
+    setDisableLogo(!checked);
+  };
+
+  // 💡 Handler สำหรับช่องกรอก URL โลโก้
+  const handleLogoUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setLogoUrl(e.target.value);
+  };
+
+  // 💡 Effect to calculate logo aspect ratio asynchronously
+  useEffect(() => {
+    if (logoUrl) {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.naturalWidth / img.naturalHeight;
+        setLogoAspectRatio(ratio);
+      };
+      img.onerror = () => {
+        console.error(
+          "Failed to load image from URL or invalid format:",
+          logoUrl
+        );
+        setLogoAspectRatio(1); // Revert to square if loading fails
+      };
+      // Prevent CORS issues by setting crossOrigin (though this is often restricted in sandboxed environments)
+      // img.crossOrigin = "Anonymous";
+      img.src = logoUrl;
+    } else {
+      // No URL, default to square for the placeholder
+      setLogoAspectRatio(1);
+    }
+  }, [logoUrl]);
 
   useEffect(() => {
     let newStampText = "";
@@ -271,8 +314,81 @@ export default function DocumentEditor() {
 
       pdf.setFont(SARABUN_FONT, "normal");
 
-      // --- 1. ตราครุฑ
-      // (ตำแหน่งเดิม)
+      // ตั้งค่าสีเริ่มต้นเป็นสีดำ (Monochrome)
+      pdf.setTextColor(0, 0, 0);
+
+      // --- 1. โลโก้ (Logo)
+      const logoX = margin;
+      const logoY = margin + 10;
+      // 💡 ความสูงคงที่ 23.5 มม. (2.35 ซม.)
+      const LOGO_HEIGHT = 23.5;
+
+      // 💡 ความกว้างคำนวณจากอัตราส่วน (ถ้า ratio เป็น 1, width = height)
+      const logoWidth = LOGO_HEIGHT * logoAspectRatio;
+
+      function drawDefaultGaruda() {
+        // ใช้ LOGO_HEIGHT เป็นขนาดฐานสำหรับตราครุฑ/สัญลักษณ์เริ่มต้น (Square)
+        const placeholderSize = LOGO_HEIGHT;
+
+        // วาดวงกลมพื้นหลัง (สีขาว)
+        pdf.setFillColor(255, 255, 255); // สีขาว
+        pdf.circle(
+          logoX + placeholderSize / 2,
+          logoY + placeholderSize / 2,
+          placeholderSize / 2,
+          "F"
+        );
+
+        // วาดกรอบวงกลม (สีดำ)
+        pdf.setDrawColor(0, 0, 0); // สีดำ
+        pdf.setLineWidth(0.25);
+        pdf.circle(
+          logoX + placeholderSize / 2,
+          logoY + placeholderSize / 2,
+          placeholderSize / 2,
+          "S"
+        );
+
+        // เขียนข้อความ "สัญลักษณ์" ตรงกลาง (สีดำ)
+        pdf.setFont(SARABUN_FONT, "bold");
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 0); // สีดำ
+        const garudaText = "สัญลักษณ์";
+        const garudaTextWidth = pdf.getTextWidth(garudaText);
+        pdf.text(
+          garudaText,
+          logoX + (placeholderSize - garudaTextWidth) / 2,
+          logoY + placeholderSize / 2 + 2
+        );
+
+        // รีเซ็ตสีกลับเป็นสีดำ
+        pdf.setTextColor(0, 0, 0);
+      }
+
+      if (!disableLogo) {
+        // ตรวจสอบ State การปิด Logo
+        if (logoUrl) {
+          // 💡 ใช้ logoWidth และ LOGO_HEIGHT ที่คำนวณจาก Aspect Ratio
+          try {
+            pdf.addImage(
+              logoUrl,
+              "PNG", // ชนิดไฟล์ (อาจต้องระบุตามชนิดไฟล์ที่แท้จริง)
+              logoX,
+              logoY,
+              logoWidth, // Width = LOGO_HEIGHT * ratio
+              LOGO_HEIGHT // Fixed Height
+            );
+          } catch (error) {
+            console.error("Error adding image to PDF from URL:", error);
+            // ถ้าเกิดข้อผิดพลาด ให้วาดตราครุฑแทน
+            drawDefaultGaruda();
+          }
+        } else {
+          // ถ้าไม่มี URL ให้วาดตราครุฑเริ่มต้น (ใช้ขนาด LOGO_HEIGHT)
+          drawDefaultGaruda();
+        }
+      }
+      // --- สิ้นสุด โลโก้
 
       // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
       const senderX = margin;
@@ -280,6 +396,7 @@ export default function DocumentEditor() {
       const lineSpacing = 8;
 
       pdf.setFontSize(18);
+      pdf.setTextColor(0, 0, 0); // ตั้งค่าสีข้อความเป็นสีดำอีกครั้ง
 
       // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
       pdf.setFont(SARABUN_FONT, "bold");
@@ -328,7 +445,11 @@ export default function DocumentEditor() {
         const textStartOffset = 3.5;
         let currentY = stampY + paddingY + textStartOffset;
 
+        // สีเส้นเป็นสีดำ
+        pdf.setDrawColor(0, 0, 0);
         pdf.rect(stampX, stampY, stampWidth, stampHeight);
+        // สีข้อความเป็นสีดำ
+        pdf.setTextColor(0, 0, 0);
 
         stampLines.forEach((line) => {
           const textWidth = pdf.getTextWidth(line);
@@ -345,6 +466,7 @@ export default function DocumentEditor() {
 
       pdf.setFontSize(26);
       pdf.setFont(SARABUN_FONT, "bold");
+      pdf.setTextColor(0, 0, 0); // ตั้งค่าสีข้อความเป็นสีดำอีกครั้ง
 
       const labelWidth = pdf.getTextWidth(greetingText);
       const detailGap = 8;
@@ -385,7 +507,16 @@ export default function DocumentEditor() {
     });
 
     return pdf.output("datauristring");
-  }, [recipientsData, stampText, senderData, greetingText, greetingPosition]);
+  }, [
+    recipientsData,
+    stampText,
+    senderData,
+    greetingText,
+    greetingPosition,
+    logoUrl,
+    disableLogo,
+    logoAspectRatio, // 💡 เพิ่ม Aspect Ratio ใน dependencies
+  ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
   useEffect(() => {
@@ -411,6 +542,7 @@ export default function DocumentEditor() {
 
   // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
+  const isLogoEnabled = !disableLogo;
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
@@ -466,6 +598,69 @@ export default function DocumentEditor() {
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
+                {/* --- ส่วนโลโก้ (Logo) --- */}
+                <div className="flex justify-between items-end">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-teal-700 dark:text-teal-400 border-b border-teal-100 pb-1">
+                    โลโก้ (Logo) **H: 23.5mm | W: Ratio**
+                  </h2>
+                  <Button
+                    onClick={() => setLogoUrl("")}
+                    variant="icon-destructive"
+                    size="icon-sm"
+                    title="ใช้ตราครุฑเริ่มต้น (วาด)"
+                    disabled={!isLogoEnabled}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/* 💡 Logo Toggle Section */}
+                <div className="flex justify-between items-center bg-teal-100 dark:bg-teal-900/40 p-3 rounded-md border border-teal-300/50 dark:border-teal-800">
+                  <label
+                    htmlFor="logo-toggle"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                  >
+                    สถานะโลโก้: **
+                    {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
+                  </label>
+                  <Switch
+                    id="logo-toggle"
+                    checked={isLogoEnabled} // Checked means enabled
+                    onCheckedChange={handleLogoSwitchChange}
+                    className="data-[state=checked]:bg-teal-500"
+                  />
+                </div>
+                {/* End Logo Toggle Section */}
+
+                {/* 💡 Input Link URL */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    ลิงก์โลโก้ (URL/Data URI)
+                  </label>
+                  <input
+                    type="text"
+                    value={logoUrl}
+                    onChange={handleLogoUrlChange}
+                    disabled={!isLogoEnabled}
+                    placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
+                    className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none
+                          ${
+                            !isLogoEnabled
+                              ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+                              : ""
+                          }
+                      `}
+                  />
+                </div>
+
+                {logoUrl && isLogoEnabled && (
+                  <p className="text-xs text-teal-600 dark:text-teal-400 font-medium whitespace-nowrap overflow-x-auto p-1 bg-teal-50 dark:bg-teal-900/40 rounded">
+                    **Current URL:** {logoUrl} <br />
+                    **Calculated Ratio (W/H):** {logoAspectRatio.toFixed(2)}
+                  </p>
+                )}
+                {/* --- สิ้นสุด โลโก้ --- */}
+
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <div className="flex justify-between items-end">
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
