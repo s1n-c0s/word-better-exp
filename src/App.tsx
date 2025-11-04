@@ -1,31 +1,33 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText, X } from "lucide-react";
-import jsPDF from "jspdf";
+// import jsPDF from "jspdf";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+// 💡 Import utility function
+import { createPdfDataUri } from "./utils/pdfUtils";
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
-const SARABUN_FONT = "THSarabunNew";
+// const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
 
 // 💡 URL ตัวอย่างสำหรับโลโก้
 const EXAMPLE_LOGO_URL =
   "https://cms-media.fda.moph.go.th/461152983531528192/2023/04/sGVDGVg2JneZ8UbNoMCKgJWJ.png";
 
-// กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
-interface RecipientData {
+// กำหนด Type สำหรับข้อมูลผู้รับ (ต้อง export เพื่อใช้ใน pdfUtils.ts)
+export interface RecipientData {
   recipientTitle: string;
   recipientAddress: string;
   recipientProvince: string;
   recipientPostal: string;
 }
 
-// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (Sender fields)
-interface SenderData {
+// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (ต้อง export เพื่อใช้ใน pdfUtils.ts)
+export interface SenderData {
   documentNumber: string;
   senderOrg: string;
   senderUniversity: string;
@@ -89,6 +91,8 @@ export default function DocumentEditor() {
 
   // 💡 State สำหรับปิด/เปิด โลโก้
   const [disableLogo, setDisableLogo] = useState(false);
+
+  // --- Handlers & Parsers ---
 
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
@@ -176,6 +180,8 @@ export default function DocumentEditor() {
     }
   };
 
+  // --- Effects ---
+
   // 💡 Effect to calculate logo aspect ratio asynchronously
   useEffect(() => {
     if (logoUrl) {
@@ -212,6 +218,23 @@ export default function DocumentEditor() {
     setStampText(newStampText);
   }, [disableStamp, manualStampInput]);
 
+  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
+  useEffect(() => {
+    // 1. ข้อมูลผู้ส่ง
+    fillExampleData("sender");
+
+    // 2. ข้อมูลผู้รับ
+    const defaultRecipientData = generateRecipientString(initialRecipients);
+    setRecipientInput(defaultRecipientData);
+    parseRecipientInput(defaultRecipientData);
+
+    // 3. ข้อมูลตราประทับถูกจัดการโดย disableStamp: true ตั้งแต่แรก
+    // 4. คำขึ้นต้น
+    setGreetingText("เรียน");
+  }, [parseSenderInput, parseRecipientInput]);
+
+  // --- Utility Functions (Local) ---
+
   // สร้าง String ข้อมูลผู้ส่ง (6 บรรทัด)
   const generateSenderString = (data: SenderData) => {
     return [
@@ -238,7 +261,8 @@ export default function DocumentEditor() {
       .join("\n\n");
   };
 
-  // --- ฟังก์ชัน: กรอกข้อมูลตัวอย่าง ---
+  // --- Fill & Clear Functions ---
+
   const fillExampleData = (
     type: "sender" | "recipient" | "stamp" | "greeting"
   ) => {
@@ -270,9 +294,7 @@ export default function DocumentEditor() {
       setGreetingText("เรียน");
     }
   };
-  // --- สิ้นสุดฟังก์ชัน ---
 
-  // --- ฟังก์ชัน: เคลียร์ข้อมูล ---
   const clearData = (type: "sender" | "recipient" | "stamp" | "greeting") => {
     if (type === "sender") {
       setSenderInput("");
@@ -287,241 +309,20 @@ export default function DocumentEditor() {
       setGreetingText("");
     }
   };
-  // --- สิ้นสุดฟังก์ชัน ---
 
-  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
-  useEffect(() => {
-    // 1. ข้อมูลผู้ส่ง
-    fillExampleData("sender");
+  // --- PDF Generation Logic (Callback to Utility) ---
 
-    // 2. ข้อมูลผู้รับ
-    const defaultRecipientData = generateRecipientString(initialRecipients);
-    setRecipientInput(defaultRecipientData);
-    parseRecipientInput(defaultRecipientData);
-
-    // 3. ข้อมูลตราประทับ
-    // 💡 เนื่องจากตั้งค่า disableStamp = true ตั้งแต่เริ่มต้น จึงไม่จำเป็นต้องตั้งค่า manualStampInput ที่นี่
-    // setManualStampInput(DEFAULT_STAMP_TEXT);
-    // setStampText(DEFAULT_STAMP_TEXT);
-
-    // 4. คำขึ้นต้น
-    setGreetingText("เรียน");
-  }, [parseSenderInput, parseRecipientInput]);
-
-  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า (มีการแก้ไขในส่วน Recipient)
   const generatePdfDataUri = useCallback(() => {
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
+    // Call the external utility function
+    return createPdfDataUri({
+      recipientsData,
+      senderData,
+      stampText,
+      greetingText,
+      greetingPosition,
+      logoUrl: disableLogo ? "" : logoUrl, // Pass empty string if disabled
+      logoAspectRatio,
     });
-
-    const pageWidth = 297;
-    const pageHeight = 210;
-    const margin = 20;
-
-    const sender = senderData;
-
-    recipientsData.forEach((data, index) => {
-      if (index > 0) {
-        pdf.addPage();
-      }
-
-      pdf.setFont(SARABUN_FONT, "normal");
-
-      // ตั้งค่าสีเริ่มต้นเป็นสีดำ (Monochrome)
-      pdf.setTextColor(0, 0, 0);
-
-      // --- 1. โลโก้ (Logo)
-      const logoX = margin;
-      const logoY = margin + 10;
-      // 💡 ความสูงคงที่ 23.5 มม. (2.35 ซม.)
-      const LOGO_HEIGHT = 23.5;
-
-      // 💡 ความกว้างคำนวณจากอัตราส่วน (ถ้า ratio เป็น 1, width = height)
-      const logoWidth = LOGO_HEIGHT * logoAspectRatio;
-
-      function drawDefaultGaruda() {
-        // ใช้ LOGO_HEIGHT เป็นขนาดฐานสำหรับตราครุฑ/สัญลักษณ์เริ่มต้น (Square)
-        const placeholderSize = LOGO_HEIGHT;
-
-        // วาดวงกลมพื้นหลัง (สีขาว)
-        pdf.setFillColor(255, 255, 255); // สีขาว
-        pdf.circle(
-          logoX + placeholderSize / 2,
-          logoY + placeholderSize / 2,
-          placeholderSize / 2,
-          "F"
-        );
-
-        // วาดกรอบวงกลม (สีดำ)
-        pdf.setDrawColor(0, 0, 0); // สีดำ
-        pdf.setLineWidth(0.25);
-        pdf.circle(
-          logoX + placeholderSize / 2,
-          logoY + placeholderSize / 2,
-          placeholderSize / 2,
-          "S"
-        );
-
-        // เขียนข้อความ "สัญลักษณ์" ตรงกลาง (สีดำ)
-        pdf.setFont(SARABUN_FONT, "bold");
-        pdf.setFontSize(16);
-        pdf.setTextColor(0, 0, 0); // สีดำ
-        const garudaText = "สัญลักษณ์";
-        const garudaTextWidth = pdf.getTextWidth(garudaText);
-        pdf.text(
-          garudaText,
-          logoX + (placeholderSize - garudaTextWidth) / 2,
-          logoY + placeholderSize / 2 + 2
-        );
-
-        // รีเซ็ตสีกลับเป็นสีดำ
-        pdf.setTextColor(0, 0, 0);
-      }
-
-      if (!disableLogo) {
-        // ตรวจสอบ State การปิด Logo
-        if (logoUrl) {
-          // 💡 ใช้ logoWidth และ LOGO_HEIGHT ที่คำนวณจาก Aspect Ratio
-          try {
-            pdf.addImage(
-              logoUrl,
-              "PNG", // ชนิดไฟล์ (อาจต้องระบุตามชนิดไฟล์ที่แท้จริง)
-              logoX,
-              logoY,
-              logoWidth, // Width = LOGO_HEIGHT * ratio
-              LOGO_HEIGHT // Fixed Height
-            );
-          } catch (error) {
-            console.error("Error adding image to PDF from URL:", error);
-            // ถ้าเกิดข้อผิดพลาด ให้วาดตราครุฑแทน
-            drawDefaultGaruda();
-          }
-        } else {
-          // ถ้าไม่มี URL ให้วาดตราครุฑเริ่มต้น (ใช้ขนาด LOGO_HEIGHT)
-          drawDefaultGaruda();
-        }
-      }
-      // --- สิ้นสุด โลโก้
-
-      // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
-      const senderX = margin;
-      let senderY = margin + 42;
-      const lineSpacing = 8;
-
-      pdf.setFontSize(18);
-      pdf.setTextColor(0, 0, 0); // ตั้งค่าสีข้อความเป็นสีดำอีกครั้ง
-
-      // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
-      pdf.setFont(SARABUN_FONT, "bold");
-      pdf.text(sender.documentNumber, senderX, senderY);
-      senderY += lineSpacing;
-
-      // ส่วนที่เหลือ: องค์กร ที่อยู่ (Normal)
-      pdf.setFont(SARABUN_FONT, "normal");
-      const senderLines = [
-        sender.senderOrg,
-        sender.senderUniversity,
-        sender.senderAddress1,
-        sender.senderAddress2,
-        sender.senderPostal,
-      ];
-      senderLines.forEach((line) => {
-        pdf.text(line, senderX, senderY);
-        senderY += lineSpacing;
-      });
-
-      // --- 3. ตราประทับ (Stamp Box)
-      if (stampText && stampText.trim().length > 0) {
-        // ... Logic การวาดตราประทับ ...
-        pdf.setFontSize(14);
-        const stampLines = stampText.split("\n");
-
-        const paddingX = 3;
-        const paddingY = 1.5;
-        const stampLineSpacing = 7;
-
-        let maxWidth = 0;
-        stampLines.forEach((line) => {
-          const width = pdf.getTextWidth(line);
-          if (width > maxWidth) {
-            maxWidth = width;
-          }
-        });
-
-        const stampWidth = maxWidth + paddingX * 2;
-        const stampHeight = stampLines.length * stampLineSpacing + paddingY * 2;
-
-        const moveUpOffset = 5;
-        const stampX = pageWidth - margin - stampWidth;
-        const stampY = margin - moveUpOffset;
-
-        const textStartOffset = 3.5;
-        let currentY = stampY + paddingY + textStartOffset;
-
-        // สีเส้นเป็นสีดำ
-        pdf.setDrawColor(0, 0, 0);
-        pdf.rect(stampX, stampY, stampWidth, stampHeight);
-        // สีข้อความเป็นสีดำ
-        pdf.setTextColor(0, 0, 0);
-
-        stampLines.forEach((line) => {
-          const textWidth = pdf.getTextWidth(line);
-          pdf.text(line, stampX + (stampWidth - textWidth) / 2, currentY);
-          currentY += stampLineSpacing;
-        });
-        // ... สิ้นสุด Logic การวาดตราประทับ ...
-      }
-
-      // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
-      const recipientBaseX = pageWidth * 0.3;
-      const recipientBaseY = pageHeight * 0.6;
-      const recipientLineSpacing = 12;
-
-      pdf.setFontSize(26);
-      pdf.setFont(SARABUN_FONT, "bold");
-      pdf.setTextColor(0, 0, 0); // ตั้งค่าสีข้อความเป็นสีดำอีกครั้ง
-
-      const labelWidth = pdf.getTextWidth(greetingText);
-      const detailGap = 8;
-      let recipientDetailX;
-      let startY = recipientBaseY;
-
-      // 💡 Logic การกำหนดตำแหน่งคำขึ้นต้น
-      if (greetingText && greetingPosition === "left") {
-        // ตำแหน่ง: คอลัมน์ซ้าย (เรียน [Title])
-        pdf.text(greetingText, recipientBaseX, recipientBaseY);
-        recipientDetailX = recipientBaseX + labelWidth + detailGap;
-      } else {
-        // ตำแหน่ง: เหนือผู้รับ
-        if (greetingText) {
-          pdf.text(
-            greetingText,
-            recipientBaseX,
-            recipientBaseY - recipientLineSpacing
-          );
-        }
-        recipientDetailX = recipientBaseX;
-        startY = recipientBaseY; // เริ่มที่ BaseY (บรรทัดแรกของข้อมูลผู้รับ)
-      }
-
-      // พิมพ์ข้อมูลผู้รับ (Title, Address, Province, Postal)
-      pdf.text(data.recipientTitle, recipientDetailX, startY);
-      pdf.text(
-        data.recipientAddress,
-        recipientDetailX,
-        startY + recipientLineSpacing
-      );
-      pdf.text(
-        data.recipientProvince,
-        recipientDetailX,
-        startY + recipientLineSpacing * 2
-      );
-      pdf.text(data.recipientPostal, recipientDetailX, startY + 39);
-    });
-
-    return pdf.output("datauristring");
   }, [
     recipientsData,
     stampText,
@@ -530,7 +331,7 @@ export default function DocumentEditor() {
     greetingPosition,
     logoUrl,
     disableLogo,
-    logoAspectRatio, // 💡 เพิ่ม Aspect Ratio ใน dependencies
+    logoAspectRatio,
   ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
@@ -651,7 +452,7 @@ export default function DocumentEditor() {
                       onChange={handleLogoUrlChange}
                       onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
                       disabled={!isLogoEnabled}
-                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
                       // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
                       className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
                             ${
