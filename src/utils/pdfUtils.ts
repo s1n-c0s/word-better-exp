@@ -1,5 +1,8 @@
+// src/utils/pdfUtils.ts
+
 import jsPDF from "jspdf";
-import { RecipientData, SenderData } from "../App"; // ต้องสร้าง Interface ใน App.tsx ให้ Export ด้วย
+// 💡 Updated import path
+import { RecipientData, SenderData } from "../types/document";
 
 // TH Sarabun New font name (must be loaded in the main app before use)
 const SARABUN_FONT = "THSarabunNew";

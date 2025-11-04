@@ -1,65 +1,29 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText, X } from "lucide-react";
-// import jsPDF from "jspdf";
+// 💡 Import toast and Toaster
+import toast, { Toaster } from "react-hot-toast";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-// 💡 Import utility function
+
+// 💡 Import external types and constants
+import { RecipientData, SenderData } from "./types/document";
+import {
+  RECIPIENT_LINES_PER_BLOCK,
+  initialRecipients,
+  initialSender,
+  DEFAULT_STAMP_TEXT,
+  EXAMPLE_LOGO_URL,
+} from "./constants";
+// 💡 Import utility functions
 import { createPdfDataUri } from "./utils/pdfUtils";
+import {
+  generateRecipientString,
+  generateSenderString,
+} from "./utils/dataUtils";
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
-
-// TH Sarabun New font will be embedded
-// const SARABUN_FONT = "THSarabunNew";
-const RECIPIENT_LINES_PER_BLOCK = 4;
-
-// 💡 URL ตัวอย่างสำหรับโลโก้
-const EXAMPLE_LOGO_URL =
-  "https://cms-media.fda.moph.go.th/461152983531528192/2023/04/sGVDGVg2JneZ8UbNoMCKgJWJ.png";
-
-// กำหนด Type สำหรับข้อมูลผู้รับ (ต้อง export เพื่อใช้ใน pdfUtils.ts)
-export interface RecipientData {
-  recipientTitle: string;
-  recipientAddress: string;
-  recipientProvince: string;
-  recipientPostal: string;
-}
-
-// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (ต้อง export เพื่อใช้ใน pdfUtils.ts)
-export interface SenderData {
-  documentNumber: string;
-  senderOrg: string;
-  senderUniversity: string;
-  senderAddress1: string;
-  senderAddress2: string;
-  senderPostal: string;
-}
-
-// กำหนดข้อความตราประทับมาตรฐานเป็นค่าคงที่
-const DEFAULT_STAMP_TEXT = `ชำระค่าฝากส่งเป็นรายเดือน
-ใบอนุญาตเลขที่ XXX/XXXX
-ตำบลต้นทาง`;
-
-// 💡 MOCKUP SENDER: ใช้ข้อมูลดั้งเดิมตามที่ร้องขอ
-const initialSender: SenderData = {
-  documentNumber: "ที่ [รหัสหน่วยงาน] [เลขที่]",
-  senderOrg: "ชื่อหน่วยงานผู้ส่ง",
-  senderUniversity: "ชื่อมหาวิทยาลัย/สถาบัน",
-  senderAddress1: "เลขที่/หมู่ที่ ตำบลต้นทาง",
-  senderAddress2: "อำเภอเมือง จังหวัดต้นทาง",
-  senderPostal: "10000",
-};
-
-// 💡 MOCKUP RECIPIENTS: ใช้ข้อมูลดั้งเดิมตามที่ร้องขอ
-const initialRecipients: RecipientData[] = [
-  {
-    recipientTitle: "ตำแหน่ง/ชื่อผู้รับ",
-    recipientAddress: "เลขที่/หมู่ที่ ตำบลปลายทางหนึ่ง อำเภอเมือง",
-    recipientProvince: "จังหวัดปลายทาง",
-    recipientPostal: "10000",
-  },
-];
 
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
@@ -73,26 +37,19 @@ export default function DocumentEditor() {
 
   const [manualStampInput, setManualStampInput] = useState(DEFAULT_STAMP_TEXT);
 
-  // 💡 แก้ไข: ตั้งค่าเริ่มต้นให้เป็น true เพื่อให้ตราประทับถูกปิดใช้งาน (disabled) ตั้งแต่แรก
   const [disableStamp, setDisableStamp] = useState(true);
-  const [stampText, setStampText] = useState(""); // ต้องตั้งค่าเริ่มต้นเป็น "" ด้วย
+  const [stampText, setStampText] = useState("");
 
-  // 💡 State สำหรับคำขึ้นต้น
   const [greetingText, setGreetingText] = useState("เรียน");
   const [greetingPosition, setGreetingPosition] = useState<"left" | "top">(
     "left"
-  ); // 'left' = คอลัมน์ซ้าย, 'top' = เหนือผู้รับ
+  );
 
-  // 💡 State สำหรับโลโก้ (URL string)
   const [logoUrl, setLogoUrl] = useState<string>("");
-
-  // 💡 State สำหรับอัตราส่วนภาพ (width/height) Default: 1 (Square)
   const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
-
-  // 💡 State สำหรับปิด/เปิด โลโก้
   const [disableLogo, setDisableLogo] = useState(false);
 
-  // --- Handlers & Parsers ---
+  // --- Handlers & Parsers (Kept as useCallback since they use setXData) ---
 
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
@@ -159,11 +116,21 @@ export default function DocumentEditor() {
   // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
+    if (checked) {
+      toast.success("เปิดใช้งานตราประทับ");
+    } else {
+      toast("ปิดใช้งานตราประทับ", { icon: "🔒" });
+    }
   };
 
   // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
   const handleLogoSwitchChange = (checked: boolean) => {
     setDisableLogo(!checked);
+    if (checked) {
+      toast.success("เปิดใช้งานโลโก้");
+    } else {
+      toast("ปิดใช้งานโลโก้", { icon: "🔒" });
+    }
   };
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
@@ -178,6 +145,30 @@ export default function DocumentEditor() {
       e.preventDefault();
       setLogoUrl(EXAMPLE_LOGO_URL);
     }
+  };
+
+  // 💡 Handler สำหรับช่องกรอกคำขึ้นต้น
+  const handleGreetingTextChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setGreetingText(value);
+
+    const notiText = value
+      ? `เปลี่ยนคำขึ้นต้นเป็น '${value}'`
+      : "ลบคำขึ้นต้นเรียบร้อยแล้ว";
+    toast.success(notiText, { duration: 1500 });
+  };
+
+  // 💡 Handler สำหรับ Switch ตำแหน่งคำขึ้นต้น
+  const handleGreetingPositionChange = (checked: boolean) => {
+    const newPosition = checked ? "top" : "left";
+    setGreetingPosition(newPosition);
+
+    const notiText =
+      newPosition === "top"
+        ? "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'เหนือผู้รับ'"
+        : "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'คอลัมน์ซ้าย'";
+
+    toast.success(notiText);
   };
 
   // --- Effects ---
@@ -197,11 +188,9 @@ export default function DocumentEditor() {
         );
         setLogoAspectRatio(1); // Revert to square if loading fails
       };
-      // Prevent CORS issues by setting crossOrigin (though this is often restricted in sandboxed environments)
       // img.crossOrigin = "Anonymous";
       img.src = logoUrl;
     } else {
-      // No URL, default to square for the placeholder
       setLogoAspectRatio(1);
     }
   }, [logoUrl]);
@@ -221,7 +210,9 @@ export default function DocumentEditor() {
   // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
   useEffect(() => {
     // 1. ข้อมูลผู้ส่ง
-    fillExampleData("sender");
+    const defaultSenderData = generateSenderString(initialSender);
+    setSenderInput(defaultSenderData);
+    parseSenderInput(defaultSenderData);
 
     // 2. ข้อมูลผู้รับ
     const defaultRecipientData = generateRecipientString(initialRecipients);
@@ -233,34 +224,6 @@ export default function DocumentEditor() {
     setGreetingText("เรียน");
   }, [parseSenderInput, parseRecipientInput]);
 
-  // --- Utility Functions (Local) ---
-
-  // สร้าง String ข้อมูลผู้ส่ง (6 บรรทัด)
-  const generateSenderString = (data: SenderData) => {
-    return [
-      data.documentNumber,
-      data.senderOrg,
-      data.senderUniversity,
-      data.senderAddress1,
-      data.senderAddress2,
-      data.senderPostal,
-    ].join("\n");
-  };
-
-  // สร้าง String ข้อมูลผู้รับ (4 บรรทัดต่อชุด)
-  const generateRecipientString = (recipients: RecipientData[]) => {
-    return recipients
-      .map((r) =>
-        [
-          r.recipientTitle,
-          r.recipientAddress,
-          r.recipientProvince,
-          r.recipientPostal,
-        ].join("\n")
-      )
-      .join("\n\n");
-  };
-
   // --- Fill & Clear Functions ---
 
   const fillExampleData = (
@@ -270,13 +233,16 @@ export default function DocumentEditor() {
       const defaultSenderData = generateSenderString(initialSender);
       setSenderInput(defaultSenderData);
       parseSenderInput(defaultSenderData);
+      toast.success("กรอกข้อมูลผู้ส่งตัวอย่างเรียบร้อยแล้ว");
     } else if (type === "recipient") {
       const newExampleData = generateRecipientString(initialRecipients);
 
       let updatedInput = recipientInput.trim();
+      let notiMessage = "เพิ่มชุดข้อมูลผู้รับตัวอย่างเรียบร้อยแล้ว";
 
       if (updatedInput.length > 0) {
         updatedInput += "\n\n" + newExampleData;
+        notiMessage = "เพิ่มชุดข้อมูลผู้รับตัวอย่างต่อท้ายเรียบร้อยแล้ว";
       } else {
         updatedInput = newExampleData;
       }
@@ -284,29 +250,37 @@ export default function DocumentEditor() {
       setRecipientInput(updatedInput);
       parseRecipientInput(updatedInput);
 
-      // 💡 การทำงานเพิ่มเติม: ตั้งค่า greeting เป็น "เรียน" เมื่อเพิ่มข้อมูลผู้รับ
       setGreetingText("เรียน");
+      toast.success(notiMessage);
     } else if (type === "stamp") {
       setManualStampInput(DEFAULT_STAMP_TEXT);
       setStampText(DEFAULT_STAMP_TEXT);
-      setDisableStamp(false); // เปิดใช้งาน Stamp ด้วย
+      setDisableStamp(false);
+      toast.success("ตั้งค่าตราประทับเป็นข้อความเริ่มต้นและเปิดใช้งาน");
     } else if (type === "greeting") {
       setGreetingText("เรียน");
+      toast.success("ตั้งค่าคำขึ้นต้นเป็น 'เรียน'");
     }
   };
 
   const clearData = (type: "sender" | "recipient" | "stamp" | "greeting") => {
+    const clearIcon = "🗑️";
+
     if (type === "sender") {
       setSenderInput("");
       parseSenderInput("");
+      toast.error("ล้างข้อมูลผู้ส่งเรียบร้อยแล้ว", { icon: clearIcon });
     } else if (type === "recipient") {
       setRecipientInput("");
       parseRecipientInput("");
+      toast.error("ล้างข้อมูลผู้รับทั้งหมดเรียบร้อยแล้ว", { icon: clearIcon });
     } else if (type === "stamp") {
       setManualStampInput("");
       setStampText("");
+      toast.error("ล้างข้อความตราประทับเรียบร้อยแล้ว", { icon: clearIcon });
     } else if (type === "greeting") {
       setGreetingText("");
+      toast.error("ล้างข้อความคำขึ้นต้นเรียบร้อยแล้ว", { icon: clearIcon });
     }
   };
 
@@ -354,6 +328,7 @@ export default function DocumentEditor() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    toast.success("เริ่มดาวน์โหลดไฟล์ PDF แล้ว", { duration: 3000 });
   };
 
   // ตัวแปรสำหรับควบคุม JSX
@@ -362,6 +337,7 @@ export default function DocumentEditor() {
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
+      <Toaster position="bottom-center" />
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
@@ -464,12 +440,17 @@ export default function DocumentEditor() {
                     />
                     {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
                     <Button
-                      onClick={() => setLogoUrl("")}
+                      onClick={() => {
+                        setLogoUrl("");
+                        toast.error("ล้างลิงก์โลโก้เรียบร้อยแล้ว", {
+                          icon: "🗑️",
+                        });
+                      }}
                       variant="icon-destructive"
                       size="icon-sm"
                       title="ล้างลิงก์โลโก้"
                       disabled={!isLogoEnabled || !logoUrl}
-                      className="w-10 h-10 flex-shrink-0"
+                      className="w-10 h-10 shrink-0"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -570,7 +551,7 @@ export default function DocumentEditor() {
                   <input
                     type="text"
                     value={greetingText}
-                    onChange={(e) => setGreetingText(e.target.value)}
+                    onChange={handleGreetingTextChange}
                     placeholder="เช่น เรียน"
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 outline-none"
                   />
@@ -607,9 +588,7 @@ export default function DocumentEditor() {
                     </label>
                     <Switch
                       checked={greetingPosition === "top"} // True คือ 'top'
-                      onCheckedChange={(checked) =>
-                        setGreetingPosition(checked ? "top" : "left")
-                      }
+                      onCheckedChange={handleGreetingPositionChange}
                       className="data-[state=checked]:bg-blue-500"
                     />
                   </div>
