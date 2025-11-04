@@ -1,27 +1,33 @@
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText, X } from "lucide-react";
-import jsPDF from "jspdf";
+// import jsPDF from "jspdf";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+// 💡 Import utility function
+import { createPdfDataUri } from "./utils/pdfUtils";
 
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
 
 // TH Sarabun New font will be embedded
-const SARABUN_FONT = "THSarabunNew";
+// const SARABUN_FONT = "THSarabunNew";
 const RECIPIENT_LINES_PER_BLOCK = 4;
 
-// กำหนด Type สำหรับข้อมูลผู้รับ (เหลือเฉพาะ Recipient fields)
-interface RecipientData {
+// 💡 URL ตัวอย่างสำหรับโลโก้
+const EXAMPLE_LOGO_URL =
+  "https://cms-media.fda.moph.go.th/461152983531528192/2023/04/sGVDGVg2JneZ8UbNoMCKgJWJ.png";
+
+// กำหนด Type สำหรับข้อมูลผู้รับ (ต้อง export เพื่อใช้ใน pdfUtils.ts)
+export interface RecipientData {
   recipientTitle: string;
   recipientAddress: string;
   recipientProvince: string;
   recipientPostal: string;
 }
 
-// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (Sender fields)
-interface SenderData {
+// 💡 กำหนด Type สำหรับข้อมูลผู้ส่ง (ต้อง export เพื่อใช้ใน pdfUtils.ts)
+export interface SenderData {
   documentNumber: string;
   senderOrg: string;
   senderUniversity: string;
@@ -67,14 +73,26 @@ export default function DocumentEditor() {
 
   const [manualStampInput, setManualStampInput] = useState(DEFAULT_STAMP_TEXT);
 
-  const [disableStamp, setDisableStamp] = useState(false);
-  const [stampText, setStampText] = useState(DEFAULT_STAMP_TEXT);
+  // 💡 แก้ไข: ตั้งค่าเริ่มต้นให้เป็น true เพื่อให้ตราประทับถูกปิดใช้งาน (disabled) ตั้งแต่แรก
+  const [disableStamp, setDisableStamp] = useState(true);
+  const [stampText, setStampText] = useState(""); // ต้องตั้งค่าเริ่มต้นเป็น "" ด้วย
 
   // 💡 State สำหรับคำขึ้นต้น
   const [greetingText, setGreetingText] = useState("เรียน");
   const [greetingPosition, setGreetingPosition] = useState<"left" | "top">(
     "left"
   ); // 'left' = คอลัมน์ซ้าย, 'top' = เหนือผู้รับ
+
+  // 💡 State สำหรับโลโก้ (URL string)
+  const [logoUrl, setLogoUrl] = useState<string>("");
+
+  // 💡 State สำหรับอัตราส่วนภาพ (width/height) Default: 1 (Square)
+  const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
+
+  // 💡 State สำหรับปิด/เปิด โลโก้
+  const [disableLogo, setDisableLogo] = useState(false);
+
+  // --- Handlers & Parsers ---
 
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
   const parseSenderInput = useCallback((input: string) => {
@@ -138,10 +156,55 @@ export default function DocumentEditor() {
     setManualStampInput(value);
   };
 
-  // Handler สำหรับ shadcn/ui Switch
+  // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
   };
+
+  // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
+  const handleLogoSwitchChange = (checked: boolean) => {
+    setDisableLogo(!checked);
+  };
+
+  // 💡 Handler สำหรับช่องกรอก URL โลโก้
+  const handleLogoUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setLogoUrl(e.target.value);
+  };
+
+  // 💡 Handler สำหรับกดปุ่ม Tab ในช่องกรอกโลโก้
+  const handleLogoInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Fill the example URL if the field is currently empty and Tab is pressed
+    if (e.key === "Tab" && !logoUrl) {
+      e.preventDefault();
+      setLogoUrl(EXAMPLE_LOGO_URL);
+    }
+  };
+
+  // --- Effects ---
+
+  // 💡 Effect to calculate logo aspect ratio asynchronously
+  useEffect(() => {
+    if (logoUrl) {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.naturalWidth / img.naturalHeight;
+        setLogoAspectRatio(ratio);
+      };
+      img.onerror = () => {
+        console.error(
+          "Failed to load image from URL or invalid format:",
+          logoUrl
+        );
+        setLogoAspectRatio(1); // Revert to square if loading fails
+      };
+      // Prevent CORS issues by setting crossOrigin (though this is often restricted in sandboxed environments)
+      // img.crossOrigin = "Anonymous";
+      img.src = logoUrl;
+    } else {
+      // No URL, default to square for the placeholder
+      setLogoAspectRatio(1);
+    }
+  }, [logoUrl]);
 
   useEffect(() => {
     let newStampText = "";
@@ -154,6 +217,23 @@ export default function DocumentEditor() {
 
     setStampText(newStampText);
   }, [disableStamp, manualStampInput]);
+
+  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
+  useEffect(() => {
+    // 1. ข้อมูลผู้ส่ง
+    fillExampleData("sender");
+
+    // 2. ข้อมูลผู้รับ
+    const defaultRecipientData = generateRecipientString(initialRecipients);
+    setRecipientInput(defaultRecipientData);
+    parseRecipientInput(defaultRecipientData);
+
+    // 3. ข้อมูลตราประทับถูกจัดการโดย disableStamp: true ตั้งแต่แรก
+    // 4. คำขึ้นต้น
+    setGreetingText("เรียน");
+  }, [parseSenderInput, parseRecipientInput]);
+
+  // --- Utility Functions (Local) ---
 
   // สร้าง String ข้อมูลผู้ส่ง (6 บรรทัด)
   const generateSenderString = (data: SenderData) => {
@@ -181,7 +261,8 @@ export default function DocumentEditor() {
       .join("\n\n");
   };
 
-  // --- ฟังก์ชัน: กรอกข้อมูลตัวอย่าง ---
+  // --- Fill & Clear Functions ---
+
   const fillExampleData = (
     type: "sender" | "recipient" | "stamp" | "greeting"
   ) => {
@@ -213,9 +294,7 @@ export default function DocumentEditor() {
       setGreetingText("เรียน");
     }
   };
-  // --- สิ้นสุดฟังก์ชัน ---
 
-  // --- ฟังก์ชัน: เคลียร์ข้อมูล ---
   const clearData = (type: "sender" | "recipient" | "stamp" | "greeting") => {
     if (type === "sender") {
       setSenderInput("");
@@ -230,162 +309,30 @@ export default function DocumentEditor() {
       setGreetingText("");
     }
   };
-  // --- สิ้นสุดฟังก์ชัน ---
 
-  // Initial Load: สร้างข้อมูลเริ่มต้น (จาก Mockup Data)
-  useEffect(() => {
-    // 1. ข้อมูลผู้ส่ง
-    fillExampleData("sender");
+  // --- PDF Generation Logic (Callback to Utility) ---
 
-    // 2. ข้อมูลผู้รับ
-    const defaultRecipientData = generateRecipientString(initialRecipients);
-    setRecipientInput(defaultRecipientData);
-    parseRecipientInput(defaultRecipientData);
-
-    // 3. ข้อมูลตราประทับ
-    setManualStampInput(DEFAULT_STAMP_TEXT);
-    setStampText(DEFAULT_STAMP_TEXT);
-
-    // 4. คำขึ้นต้น
-    setGreetingText("เรียน");
-  }, [parseSenderInput, parseRecipientInput]);
-
-  // ฟังก์ชันสร้าง PDF รองรับหลายหน้า (มีการแก้ไขในส่วน Recipient)
   const generatePdfDataUri = useCallback(() => {
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
+    // Call the external utility function
+    return createPdfDataUri({
+      recipientsData,
+      senderData,
+      stampText,
+      greetingText,
+      greetingPosition,
+      logoUrl: disableLogo ? "" : logoUrl, // Pass empty string if disabled
+      logoAspectRatio,
     });
-
-    const pageWidth = 297;
-    const pageHeight = 210;
-    const margin = 20;
-
-    const sender = senderData;
-
-    recipientsData.forEach((data, index) => {
-      if (index > 0) {
-        pdf.addPage();
-      }
-
-      pdf.setFont(SARABUN_FONT, "normal");
-
-      // --- 1. ตราครุฑ
-      // (ตำแหน่งเดิม)
-
-      // --- 2. ที่อยู่ผู้ส่ง (ใช้ข้อมูลผู้ส่งชุดเดียว)
-      const senderX = margin;
-      let senderY = margin + 42;
-      const lineSpacing = 8;
-
-      pdf.setFontSize(18);
-
-      // บรรทัดที่ 1: เลขที่หนังสือ (Bold ทั้งบรรทัด)
-      pdf.setFont(SARABUN_FONT, "bold");
-      pdf.text(sender.documentNumber, senderX, senderY);
-      senderY += lineSpacing;
-
-      // ส่วนที่เหลือ: องค์กร ที่อยู่ (Normal)
-      pdf.setFont(SARABUN_FONT, "normal");
-      const senderLines = [
-        sender.senderOrg,
-        sender.senderUniversity,
-        sender.senderAddress1,
-        sender.senderAddress2,
-        sender.senderPostal,
-      ];
-      senderLines.forEach((line) => {
-        pdf.text(line, senderX, senderY);
-        senderY += lineSpacing;
-      });
-
-      // --- 3. ตราประทับ (Stamp Box)
-      if (stampText && stampText.trim().length > 0) {
-        // ... Logic การวาดตราประทับ ...
-        pdf.setFontSize(14);
-        const stampLines = stampText.split("\n");
-
-        const paddingX = 3;
-        const paddingY = 1.5;
-        const stampLineSpacing = 7;
-
-        let maxWidth = 0;
-        stampLines.forEach((line) => {
-          const width = pdf.getTextWidth(line);
-          if (width > maxWidth) {
-            maxWidth = width;
-          }
-        });
-
-        const stampWidth = maxWidth + paddingX * 2;
-        const stampHeight = stampLines.length * stampLineSpacing + paddingY * 2;
-
-        const moveUpOffset = 5;
-        const stampX = pageWidth - margin - stampWidth;
-        const stampY = margin - moveUpOffset;
-
-        const textStartOffset = 3.5;
-        let currentY = stampY + paddingY + textStartOffset;
-
-        pdf.rect(stampX, stampY, stampWidth, stampHeight);
-
-        stampLines.forEach((line) => {
-          const textWidth = pdf.getTextWidth(line);
-          pdf.text(line, stampX + (stampWidth - textWidth) / 2, currentY);
-          currentY += stampLineSpacing;
-        });
-        // ... สิ้นสุด Logic การวาดตราประทับ ...
-      }
-
-      // --- 4. ผู้รับ (26px, Bold ทั้งหมด)
-      const recipientBaseX = pageWidth * 0.3;
-      const recipientBaseY = pageHeight * 0.6;
-      const recipientLineSpacing = 12;
-
-      pdf.setFontSize(26);
-      pdf.setFont(SARABUN_FONT, "bold");
-
-      const labelWidth = pdf.getTextWidth(greetingText);
-      const detailGap = 8;
-      let recipientDetailX;
-      let startY = recipientBaseY;
-
-      // 💡 Logic การกำหนดตำแหน่งคำขึ้นต้น
-      if (greetingText && greetingPosition === "left") {
-        // ตำแหน่ง: คอลัมน์ซ้าย (เรียน [Title])
-        pdf.text(greetingText, recipientBaseX, recipientBaseY);
-        recipientDetailX = recipientBaseX + labelWidth + detailGap;
-      } else {
-        // ตำแหน่ง: เหนือผู้รับ
-        if (greetingText) {
-          pdf.text(
-            greetingText,
-            recipientBaseX,
-            recipientBaseY - recipientLineSpacing
-          );
-        }
-        recipientDetailX = recipientBaseX;
-        startY = recipientBaseY; // เริ่มที่ BaseY (บรรทัดแรกของข้อมูลผู้รับ)
-      }
-
-      // พิมพ์ข้อมูลผู้รับ (Title, Address, Province, Postal)
-      pdf.text(data.recipientTitle, recipientDetailX, startY);
-      pdf.text(
-        data.recipientAddress,
-        recipientDetailX,
-        startY + recipientLineSpacing
-      );
-      pdf.text(
-        data.recipientProvince,
-        recipientDetailX,
-        startY + recipientLineSpacing * 2
-      );
-      pdf.text(data.recipientPostal, recipientDetailX, startY + 39);
-    });
-
-    return pdf.output("datauristring");
-  }, [recipientsData, stampText, senderData, greetingText, greetingPosition]);
+  }, [
+    recipientsData,
+    stampText,
+    senderData,
+    greetingText,
+    greetingPosition,
+    logoUrl,
+    disableLogo,
+    logoAspectRatio,
+  ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
   useEffect(() => {
@@ -411,6 +358,7 @@ export default function DocumentEditor() {
 
   // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
+  const isLogoEnabled = !disableLogo;
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
@@ -466,6 +414,76 @@ export default function DocumentEditor() {
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
+                {/* --- ส่วนโลโก้ (Logo) --- */}
+                {/* 💡 Heading ที่ไม่มีปุ่มล้าง */}
+                <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
+                  โลโก้ (Logo) **H: 23.5mm**
+                </h2>
+
+                {/* 💡 Logo Toggle Section */}
+                <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
+                  <label
+                    htmlFor="logo-toggle"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                  >
+                    สถานะโลโก้: **
+                    {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
+                  </label>
+                  <Switch
+                    id="logo-toggle"
+                    checked={isLogoEnabled} // Checked means enabled
+                    onCheckedChange={handleLogoSwitchChange}
+                    className="data-[state=checked]:bg-green-500"
+                  />
+                </div>
+                {/* End Logo Toggle Section */}
+
+                {/* 💡 Input Link URL + Clear Button */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    ลิงก์โลโก้ (URL/Data URI)
+                  </label>
+                  <div className="flex space-x-2 items-center">
+                    {" "}
+                    {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
+                    <input
+                      type="text"
+                      value={logoUrl}
+                      onChange={handleLogoUrlChange}
+                      onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
+                      disabled={!isLogoEnabled}
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
+                      // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
+                      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                    />
+                    {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
+                    <Button
+                      onClick={() => setLogoUrl("")}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="ล้างลิงก์โลโก้"
+                      disabled={!isLogoEnabled || !logoUrl}
+                      className="w-10 h-10 flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* {logoUrl && isLogoEnabled && (
+                  <p className="text-xs text-teal-600 dark:text-teal-400 font-medium whitespace-nowrap overflow-x-auto p-1 bg-teal-50 dark:bg-teal-900/40 rounded">
+                    **Current URL:** {logoUrl} <br />
+                    **Calculated Ratio (W/H):** {logoAspectRatio.toFixed(2)}
+                  </p>
+                )} */}
+                {/* --- สิ้นสุด โลโก้ --- */}
+
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <div className="flex justify-between items-end">
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
@@ -557,33 +575,11 @@ export default function DocumentEditor() {
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 outline-none"
                   />
 
-                  <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
-                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      ตำแหน่งคำขึ้นต้น: **
-                      {greetingPosition === "left"
-                        ? "คอลัมน์ซ้าย"
-                        : "เหนือผู้รับ"}
-                      **
-                    </label>
-                    <Switch
-                      checked={greetingPosition === "top"} // True คือ 'top'
-                      onCheckedChange={(checked) =>
-                        setGreetingPosition(checked ? "top" : "left")
-                      }
-                      className="data-[state=checked]:bg-green-500"
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
-                  </p>
-                </div>
-                {/* --- สิ้นสุด Greeting Control --- */}
-
-                <textarea
-                  value={recipientInput}
-                  onChange={handleRecipientChange}
-                  rows={10}
-                  placeholder={`
+                  <textarea
+                    value={recipientInput}
+                    onChange={handleRecipientChange}
+                    rows={10}
+                    placeholder={`
 ชุดที่ 1 (4 บรรทัด)
 1. ชื่อ/หน่วยงานผู้รับ
 2. ที่อยู่ผู้รับ (มีชื่อตำบล)
@@ -596,8 +592,29 @@ export default function DocumentEditor() {
 3. จังหวัดผู้รับ
 4. รหัสไปรษณีย์ผู้รับ
                   `.trim()}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
-                />
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono"
+                  />
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    โปรดป้อนข้อมูล **4 บรรทัดต่อชุด** สำหรับผู้รับแต่ละราย
+                  </p>
+                  <div className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800">
+                    <label className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      ตำแหน่งคำขึ้นต้น: **
+                      {greetingPosition === "left"
+                        ? "คอลัมน์ซ้าย"
+                        : "เหนือผู้รับ"}
+                      **
+                    </label>
+                    <Switch
+                      checked={greetingPosition === "top"} // True คือ 'top'
+                      onCheckedChange={(checked) =>
+                        setGreetingPosition(checked ? "top" : "left")
+                      }
+                      className="data-[state=checked]:bg-blue-500"
+                    />
+                  </div>
+                </div>
+                {/* --- สิ้นสุด Greeting Control --- */}
 
                 {/* --- Stamp Section ที่แยกออกมา --- */}
                 <div className="flex justify-between items-end pt-2">
