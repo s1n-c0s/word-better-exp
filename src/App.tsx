@@ -614,21 +614,10 @@ export default function DocumentEditor() {
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
                 {/* --- ส่วนโลโก้ (Logo) --- */}
-                <div className="flex justify-between items-end">
-                  {/* 💡 อัปเดต Heading */}
-                  <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
-                    โลโก้ (Logo) **H: 23.5mm | W: Ratio**
-                  </h2>
-                  <Button
-                    onClick={() => setLogoUrl("")}
-                    variant="icon-destructive"
-                    size="icon-sm"
-                    title="ใช้ตราครุฑเริ่มต้น (วาด)"
-                    disabled={!isLogoEnabled}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
+                {/* 💡 Heading ที่ไม่มีปุ่มล้าง */}
+                <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
+                  โลโก้ (Logo) **H: 23.5mm**
+                </h2>
 
                 {/* 💡 Logo Toggle Section */}
                 <div className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800">
@@ -648,26 +637,42 @@ export default function DocumentEditor() {
                 </div>
                 {/* End Logo Toggle Section */}
 
-                {/* 💡 Input Link URL */}
+                {/* 💡 Input Link URL + Clear Button */}
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                     ลิงก์โลโก้ (URL/Data URI)
                   </label>
-                  <input
-                    type="text"
-                    value={logoUrl}
-                    onChange={handleLogoUrlChange}
-                    onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
-                    disabled={!isLogoEnabled}
-                    placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
-                    className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none
-                          ${
-                            !isLogoEnabled
-                              ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-                              : ""
-                          }
-                      `}
-                  />
+                  <div className="flex space-x-2 items-center">
+                    {" "}
+                    {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
+                    <input
+                      type="text"
+                      value={logoUrl}
+                      onChange={handleLogoUrlChange}
+                      onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
+                      disabled={!isLogoEnabled}
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
+                      // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
+                      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                    />
+                    {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
+                    <Button
+                      onClick={() => setLogoUrl("")}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="ล้างลิงก์โลโก้"
+                      disabled={!isLogoEnabled || !logoUrl}
+                      className="w-10 h-10 flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* {logoUrl && isLogoEnabled && (
