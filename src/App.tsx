@@ -46,6 +46,7 @@ export default function DocumentEditor() {
   );
 
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [logoBase64, setLogoBase64] = useState<string>(""); // 💡 NEW: State for Base64 image data
   const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
   const [disableLogo, setDisableLogo] = useState(false);
 
@@ -173,27 +174,62 @@ export default function DocumentEditor() {
 
   // --- Effects ---
 
-  // 💡 Effect to calculate logo aspect ratio asynchronously
+  // 💡 Effect to calculate logo aspect ratio and generate Base64 asynchronously
   useEffect(() => {
-    if (logoUrl) {
-      const img = new Image();
-      img.onload = () => {
+    setLogoBase64(""); // Clear old Base64 data
+    if (!logoUrl) {
+      setLogoAspectRatio(1);
+      return;
+    }
+
+    const img = new Image();
+    // Set crossOrigin to anonymous for images hosted on CORS-enabled servers
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+      try {
         const ratio = img.naturalWidth / img.naturalHeight;
         setLogoAspectRatio(ratio);
-      };
-      img.onerror = () => {
-        console.error(
-          "Failed to load image from URL or invalid format:",
-          logoUrl
+
+        // --- CONVERT IMAGE TO BASE64 USING CANVAS ---
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL("image/png"); // Use PNG for transparency safety
+          setLogoBase64(dataURL);
+          toast.success("โหลดโลโก้สำเร็จ, อัปเดตพรีวิวแล้ว", {
+            duration: 1000,
+          });
+        } else {
+          throw new Error("Could not get 2D context from canvas.");
+        }
+      } catch (error) {
+        console.error("Error during Base64 conversion:", error);
+        setLogoAspectRatio(1);
+        setLogoBase64("");
+        toast.error(
+          "ข้อผิดพลาด: ไม่สามารถแปลงรูปภาพเป็น Base64 ได้ (อาจเป็นปัญหา CORS)",
+          { icon: "⚠️" }
         );
-        setLogoAspectRatio(1); // Revert to square if loading fails
-      };
-      // img.crossOrigin = "Anonymous";
-      img.src = logoUrl;
-    } else {
-      setLogoAspectRatio(1);
-    }
-  }, [logoUrl]);
+      }
+    };
+
+    img.onerror = () => {
+      console.error(
+        "Failed to load image from URL or invalid format:",
+        logoUrl
+      );
+      setLogoAspectRatio(1); // Revert to square if loading fails
+      setLogoBase64("");
+      toast.error("ข้อผิดพลาด: ไม่สามารถโหลดรูปภาพโลโก้ได้", { icon: "⚠️" });
+    };
+
+    // Attempt to load the image
+    img.src = logoUrl;
+  }, [logoUrl]); // Dependency: logoUrl
 
   useEffect(() => {
     let newStampText = "";
@@ -294,7 +330,8 @@ export default function DocumentEditor() {
       stampText,
       greetingText,
       greetingPosition,
-      logoUrl: disableLogo ? "" : logoUrl, // Pass empty string if disabled
+      // 💡 CHANGED: Pass logoBase64 instead of logoUrl
+      logoUrl: disableLogo ? "" : logoBase64,
       logoAspectRatio,
     });
   }, [
@@ -303,7 +340,7 @@ export default function DocumentEditor() {
     senderData,
     greetingText,
     greetingPosition,
-    logoUrl,
+    logoBase64, // CHANGED DEPENDENCY
     disableLogo,
     logoAspectRatio,
   ]);
@@ -428,7 +465,7 @@ export default function DocumentEditor() {
                       onChange={handleLogoUrlChange}
                       onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
                       disabled={!isLogoEnabled}
-                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URI)"
                       // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
                       className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
                             ${
@@ -553,7 +590,7 @@ export default function DocumentEditor() {
                     value={greetingText}
                     onChange={handleGreetingTextChange}
                     placeholder="เช่น เรียน"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 outline-none"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
                   />
 
                   <textarea
