@@ -4,6 +4,8 @@ import { Download, FileText, X } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+// 💡 NEW: Import Tabs components
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // 💡 Import external types and constants
 import { RecipientData, SenderData } from "./types/document";
@@ -24,6 +26,17 @@ import {
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
+
+// 💡 NEW: Paper Size Constants (ในหน่วย mm)
+const CUSTOM_PAPER_WIDTH_MM = 108; // ความกว้างเดิม (ใช้เป็น Height เมื่อเป็นแนวนอน)
+const CUSTOM_PAPER_HEIGHT_MM = 235; // ความสูงเดิม (ใช้เป็น Width เมื่อเป็นแนวนอน)
+const CUSTOM_PAPER_LABEL = `10.8 x 23.5 ซม.`;
+
+// Aspect Ratio (Width/Height) สำหรับการแสดงผล Preview
+// A4 Landscape: W=297, H=210 -> Ratio = 297/210 ≈ 1.414
+const A4_W_H_RATIO = 297 / 210;
+// Custom Landscape: W=235, H=108 -> Ratio = 235/108 ≈ 2.176
+const CUSTOM_W_H_RATIO = CUSTOM_PAPER_HEIGHT_MM / CUSTOM_PAPER_WIDTH_MM;
 
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
@@ -56,6 +69,9 @@ export default function DocumentEditor() {
   const [customHeightInput, setCustomHeightInput] = useState("15"); // Input: Height (mm)
   // 💡 REMOVED: customLogoWidth
   const [customLogoHeight, setCustomLogoHeight] = useState(15); // Parsed value
+
+  // 💡 NEW: Paper Size State
+  const [paperSize, setPaperSize] = useState<"A4" | "Custom108x235">("A4");
 
   // --- Handlers & Parsers (Kept as useCallback since they use setXData) ---
 
@@ -330,6 +346,16 @@ export default function DocumentEditor() {
   // --- PDF Generation Logic (Callback to Utility) ---
 
   const generatePdfDataUri = useCallback(() => {
+    // 💡 NEW: Define paper size options based on state
+    const paperSizeOptions =
+      paperSize === "A4"
+        ? { format: "A4" } // Pass format name
+        : {
+            // Pass custom dimensions (in mm)
+            width: CUSTOM_PAPER_WIDTH_MM,
+            height: CUSTOM_PAPER_HEIGHT_MM,
+          };
+
     // Call the external utility function
     return createPdfDataUri({
       recipientsData,
@@ -343,6 +369,8 @@ export default function DocumentEditor() {
       // 💡 UPDATED: ลบ logoCustomWidth ออก
       useCustomLogoSize: useCustomSize,
       logoCustomHeight: customLogoHeight,
+      // 💡 NEW: Pass paper size options
+      paperSizeOptions,
     });
   }, [
     recipientsData,
@@ -356,6 +384,7 @@ export default function DocumentEditor() {
     // 💡 UPDATED DEPENDENCIES: ลบ customLogoWidth ออก
     useCustomSize,
     customLogoHeight,
+    paperSize, // 💡 NEW DEPENDENCY
   ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
@@ -384,6 +413,10 @@ export default function DocumentEditor() {
   // ตัวแปรสำหรับควบคุม JSX
   const isStampEnabled = !disableStamp;
   const isLogoEnabled = !disableLogo;
+
+  // 💡 NEW: Calculate the current aspect ratio (Width/Height)
+  const currentAspectRatio =
+    paperSize === "A4" ? A4_W_H_RATIO : CUSTOM_W_H_RATIO;
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
@@ -415,18 +448,21 @@ export default function DocumentEditor() {
 
         {/* --- Main Content: ส่วน Preview PDF และ Input Box ใหม่ --- */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* Preview Panel */}
-          <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-            <div
-              className={`transition-all bg-white shadow-xl
-                w-full max-w-[95%] aspect-[1.414/1] 
-                p-2`}
-            >
+          {/* 💡 UPDATED: Preview Panel - Set to full left, scrollable, no border/shadow on paper */}
+          <div className="flex-1 lg:w-3/5 overflow-auto p-0 bg-gray-100 dark:bg-gray-900 flex items-start justify-center">
+            {/* 💡 Inner container to add padding around the PDF in the scrollable view */}
+            <div className="p-4 w-full h-full">
               {pdfUrl ? (
+                // 💡 FIX: Use inline style with calculated aspect ratio for sizing
                 <iframe
                   title="PDF Preview"
                   src={pdfUrl}
-                  className="w-full h-full border-none"
+                  className="w-full h-auto border-none shadow-xl bg-white"
+                  // ใช้ style attribute เพื่อกำหนด aspect-ratio แบบ dynamic
+                  style={{
+                    maxWidth: paperSize === "A4" ? "800px" : "90%",
+                    aspectRatio: `${currentAspectRatio}/1`,
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -440,8 +476,52 @@ export default function DocumentEditor() {
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
+                {/* 💡 NEW: Tab Component for Paper Size Selection */}
+                <div className="pt-2">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-red-700 dark:text-red-400 border-b border-red-100 pb-1">
+                    เลือกขนาดซองจดหมาย / กระดาษ
+                  </h2>
+
+                  <Tabs
+                    defaultValue="A4"
+                    value={paperSize}
+                    onValueChange={(value) =>
+                      setPaperSize(value as "A4" | "Custom108x235")
+                    }
+                    className="w-full mt-3"
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger
+                        value="A4"
+                        className="font-semibold text-base"
+                      >
+                        A4 (21 x 29.7 ซม.)
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="Custom108x235"
+                        className="font-semibold text-base"
+                      >
+                        {CUSTOM_PAPER_LABEL} (ซองจดหมาย)
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent
+                      value="A4"
+                      className="pt-4 text-sm text-gray-600 dark:text-gray-400"
+                    >
+                      ใช้สำหรับขนาด A4 แนวนอนมาตรฐาน (297 x 210 มม.)
+                    </TabsContent>
+                    <TabsContent
+                      value="Custom108x235"
+                      className="pt-4 text-sm text-gray-600 dark:text-gray-400"
+                    >
+                      ใช้สำหรับซองจดหมายขนาดกำหนดเอง (235 x 108 มม. แนวนอน)
+                    </TabsContent>
+                  </Tabs>
+                </div>
+                {/* --- End Paper Size Tabs --- */}
+
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
-                <div className="flex justify-between items-end">
+                <div className="flex justify-between items-end pt-4">
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
