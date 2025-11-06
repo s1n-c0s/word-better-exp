@@ -155,13 +155,13 @@ export default function DocumentEditor() {
   // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
-    // 💡 REMOVED: Toast is now handled by the outer div's onClick
+    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
   const handleLogoSwitchChange = (checked: boolean) => {
     setDisableLogo(!checked);
-    // 💡 REMOVED: Toast is now handled by the outer div's onClick
+    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
@@ -192,13 +192,13 @@ export default function DocumentEditor() {
   // 💡 Handler สำหรับ Switch ตำแหน่งคำขึ้นต้น
   const handleGreetingPositionChange = (checked: boolean) => {
     setGreetingPosition(checked ? "top" : "left");
-    // 💡 REMOVED: Toast is now handled by the outer div's onClick
+    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 NEW: Handler สำหรับ Switch ขนาดโลโก้
   const handleCustomSizeSwitchChange = (checked: boolean) => {
     setUseCustomSize(checked);
-    // Toast is now handled by the outer div's onClick
+    // Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 UPDATED: Handler สำหรับช่องกรอกความสูงโลโก้
@@ -648,10 +648,10 @@ export default function DocumentEditor() {
                   <div
                     className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800 cursor-pointer"
                     onClick={() => {
-                      // ADDED onClick handler
-                      const newChecked = greetingPosition === "left";
-                      handleGreetingPositionChange(newChecked);
-                      if (newChecked) {
+                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeTop) ก่อน
+                      const willBeTop = greetingPosition === "left";
+                      handleGreetingPositionChange(willBeTop);
+                      if (willBeTop) {
                         toast.success(
                           "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'เหนือผู้รับ'"
                         );
@@ -673,6 +673,7 @@ export default function DocumentEditor() {
                       checked={greetingPosition === "top"} // True คือ 'top'
                       onCheckedChange={handleGreetingPositionChange}
                       className="data-[state=checked]:bg-blue-500"
+                      onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                     />
                   </div>
                 </div>
@@ -710,9 +711,10 @@ export default function DocumentEditor() {
                 <div
                   className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800 cursor-pointer"
                   onClick={() => {
-                    // ADDED onClick handler
-                    handleSwitchChange(!isStampEnabled);
-                    if (!isStampEnabled) {
+                    // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน
+                    const willBeEnabled = !isStampEnabled;
+                    handleSwitchChange(willBeEnabled);
+                    if (willBeEnabled) {
                       toast.success("เปิดใช้งานตราประทับ");
                     } else {
                       toast("ปิดใช้งานตราประทับ", { icon: "🔒" });
@@ -720,7 +722,7 @@ export default function DocumentEditor() {
                   }}
                 >
                   <label
-                    htmlFor="stamp-toggle"
+                    // 💡 FIXED: ลบ htmlFor ออก
                     className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                   >
                     สถานะตราประทับ: **
@@ -731,6 +733,7 @@ export default function DocumentEditor() {
                     checked={isStampEnabled}
                     onCheckedChange={handleSwitchChange}
                     className="data-[state=checked]:bg-purple-500"
+                    onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                   />
                 </div>
 
@@ -765,9 +768,10 @@ export default function DocumentEditor() {
                   <div
                     className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer mt-3"
                     onClick={() => {
-                      // ADDED onClick handler
-                      handleLogoSwitchChange(!isLogoEnabled);
-                      if (!isLogoEnabled) {
+                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน
+                      const willBeEnabled = !isLogoEnabled;
+                      handleLogoSwitchChange(willBeEnabled);
+                      if (willBeEnabled) {
                         toast.success("เปิดใช้งานโลโก้");
                       } else {
                         toast("ปิดใช้งานโลโก้", { icon: "🔒" });
@@ -775,7 +779,7 @@ export default function DocumentEditor() {
                     }}
                   >
                     <label
-                      htmlFor="logo-toggle"
+                      // 💡 FIXED: ลบ htmlFor ออก
                       className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                     >
                       สถานะโลโก้: **
@@ -786,6 +790,7 @@ export default function DocumentEditor() {
                       checked={isLogoEnabled} // Checked means enabled
                       onCheckedChange={handleLogoSwitchChange}
                       className="data-[state=checked]:bg-green-500"
+                      onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                     />
                   </div>
                   {/* End Logo Toggle Section */}
@@ -846,16 +851,21 @@ export default function DocumentEditor() {
                       }`}
                       onClick={() => {
                         if (!isLogoEnabled) return;
-                        handleCustomSizeSwitchChange(!useCustomSize);
-                        if (!useCustomSize) {
-                          toast.success("กลับไปใช้การคำนวณอัตราส่วน");
-                        } else {
+                        // 💡 FIXED: คำนวณสถานะใหม่ (willBeCustomSize) ก่อน
+                        const willBeCustomSize = !useCustomSize;
+                        handleCustomSizeSwitchChange(willBeCustomSize);
+
+                        if (willBeCustomSize) {
+                          // ถ้าสถานะใหม่คือ TRUE (กำหนดเอง)
                           toast.success("เปิดใช้งานกำหนดขนาดเอง");
+                        } else {
+                          // ถ้าสถานะใหม่คือ FALSE (Aspect Ratio)
+                          toast.success("กลับไปใช้การคำนวณอัตราส่วน");
                         }
                       }}
                     >
                       <label
-                        htmlFor="custom-size-toggle"
+                        // 💡 FIXED: ลบ htmlFor ออก
                         className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                       >
                         ใช้ขนาดกำหนดเอง (mm): **
@@ -870,6 +880,7 @@ export default function DocumentEditor() {
                         onCheckedChange={handleCustomSizeSwitchChange}
                         disabled={!isLogoEnabled}
                         className="data-[state=checked]:bg-green-600"
+                        onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                       />
                     </div>
 
