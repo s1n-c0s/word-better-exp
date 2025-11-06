@@ -6,7 +6,7 @@ import { RecipientData, SenderData } from "../types/document";
 
 // TH Sarabun New font name (must be loaded in the main app before use)
 const SARABUN_FONT = "THSarabunNew";
-const LOGO_HEIGHT = 23.5; // Fixed height in mm
+const LOGO_HEIGHT = 20.5; // Fixed height in mm
 
 interface PdfGenerationArgs {
   recipientsData: RecipientData[];
@@ -16,9 +16,8 @@ interface PdfGenerationArgs {
   greetingPosition: "left" | "top";
   logoUrl: string;
   logoAspectRatio: number;
-  // 💡 NEW: Custom Logo Size Parameters
+  // 💡 UPDATED: Custom Logo Size Parameters - ลบ logoCustomWidth ออก
   useCustomLogoSize: boolean;
-  logoCustomWidth: number;
   logoCustomHeight: number;
 }
 
@@ -37,9 +36,9 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     greetingPosition,
     logoUrl,
     logoAspectRatio,
-    // 💡 NEW: Destructure custom size params
+    // 💡 UPDATED: Destructure custom size params
     useCustomLogoSize,
-    logoCustomWidth,
+    // เราจะใช้ logoCustomHeight เป็นหลักในการคำนวณ
     logoCustomHeight,
   } = args;
 
@@ -75,12 +74,14 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     let finalLogoWidth: number;
     let finalLogoHeight: number;
 
-    if (useCustomLogoSize && logoCustomWidth > 0 && logoCustomHeight > 0) {
-      // ใช้ขนาดที่ผู้ใช้กำหนดเอง
-      finalLogoWidth = logoCustomWidth;
+    // 💡 UPDATED LOGIC: กำหนดความสูงตาม Custom Height แต่คำนวณความกว้างจาก Aspect Ratio
+    if (useCustomLogoSize && logoCustomHeight > 0) {
+      // 1. ใช้ความสูงที่ผู้ใช้กำหนด
       finalLogoHeight = logoCustomHeight;
+      // 💡 CHANGED: คำนวณ Width จาก Height ที่ผู้ใช้ป้อน และ Aspect Ratio
+      finalLogoWidth = finalLogoHeight * logoAspectRatio;
     } else {
-      // ใช้การคำนวณจาก Aspect Ratio และความสูงคงที่ (ค่าเริ่มต้น)
+      // 2. ใช้ความสูงคงที่ (ค่าเริ่มต้น)
       finalLogoHeight = LOGO_HEIGHT;
       finalLogoWidth = LOGO_HEIGHT * logoAspectRatio;
     }
@@ -91,42 +92,37 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     const logoY = senderY - finalLogoHeight - LOGO_SENDER_GAP;
     // --- End Logo Position Calculation
 
-    function drawDefaultGaruda() {
-      // ฟังก์ชันสำหรับวาดสัญลักษณ์เริ่มต้น (Mock-up)
-      const placeholderSize = LOGO_HEIGHT;
+    // function drawDefaultGaruda() {
+    //   // 💡 OPTIMIZED: ใช้ finalLogoHeight สำหรับขนาดของ Mock-up เพื่อให้สอดคล้องกับขนาดที่ผู้ใช้ตั้ง
+    //   const placeholderSize = finalLogoHeight;
+    //   const radius = placeholderSize / 2;
+    //   const centerX = logoX + radius; // ใช้ logoX เป็นจุดเริ่มต้น
+    //   const centerY = logoY + radius;
 
-      // Draw white background circle
-      pdf.setFillColor(255, 255, 255);
-      pdf.circle(
-        logoX + placeholderSize / 2,
-        logoY + placeholderSize / 2,
-        placeholderSize / 2,
-        "F"
-      );
+    //   // Draw white background circle
+    //   pdf.setFillColor(255, 255, 255);
+    //   pdf.circle(centerX, centerY, radius, "F");
 
-      // Draw black border
-      pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.25);
-      pdf.circle(
-        logoX + placeholderSize / 2,
-        logoY + placeholderSize / 2,
-        placeholderSize / 2,
-        "S"
-      );
+    //   // Draw black border
+    //   pdf.setDrawColor(0, 0, 0);
+    //   pdf.setLineWidth(0.25);
+    //   pdf.circle(centerX, centerY, radius, "S");
 
-      // Draw placeholder text
-      pdf.setFont(SARABUN_FONT, "bold");
-      pdf.setFontSize(16);
-      pdf.setTextColor(0, 0, 0);
-      const garudaText = "สัญลักษณ์";
-      const garudaTextWidth = pdf.getTextWidth(garudaText);
-      pdf.text(
-        garudaText,
-        logoX + (placeholderSize - garudaTextWidth) / 2,
-        logoY + placeholderSize / 2 + 2
-      );
-      pdf.setTextColor(0, 0, 0);
-    }
+    //   // Draw placeholder text
+    //   pdf.setFont(SARABUN_FONT, "bold");
+    //   pdf.setFontSize(16); // ใช้ขนาดฟอนต์คงที่
+    //   pdf.setTextColor(0, 0, 0);
+    //   const garudaText = "สัญลักษณ์";
+    //   const garudaTextWidth = pdf.getTextWidth(garudaText);
+
+    //   // Center text in the circle
+    //   pdf.text(
+    //     garudaText,
+    //     centerX - garudaTextWidth / 2,
+    //     centerY + 2 // ปรับตำแหน่งเล็กน้อย
+    //   );
+    //   pdf.setTextColor(0, 0, 0);
+    // }
 
     // 💡 Logic: วาดเฉพาะเมื่อมี URL หรือเมื่อเกิด Error ในการโหลด URL
     if (logoUrl) {
@@ -143,7 +139,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
       } catch (error) {
         console.error("Error adding image to PDF from URL:", error);
         // วาด Mock-up หากการโหลด URL ล้มเหลว
-        drawDefaultGaruda();
+        // drawDefaultGaruda();
       }
     }
     // 💡 หาก logoUrl ว่างเปล่า จะไม่วาดอะไรเลยตามคำขอ

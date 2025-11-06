@@ -50,11 +50,11 @@ export default function DocumentEditor() {
   const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
   const [disableLogo, setDisableLogo] = useState(false);
 
-  // 💡 NEW: Custom Logo Size States
+  // 💡 UPDATED: Custom Logo Size States - ลบ Width ออก
   const [useCustomSize, setUseCustomSize] = useState(false);
-  const [customWidthInput, setCustomWidthInput] = useState("15"); // Input: Width (mm)
+  // 💡 REMOVED: customWidthInput
   const [customHeightInput, setCustomHeightInput] = useState("15"); // Input: Height (mm)
-  const [customLogoWidth, setCustomLogoWidth] = useState(15); // Parsed value
+  // 💡 REMOVED: customLogoWidth
   const [customLogoHeight, setCustomLogoHeight] = useState(15); // Parsed value
 
   // --- Handlers & Parsers (Kept as useCallback since they use setXData) ---
@@ -170,16 +170,7 @@ export default function DocumentEditor() {
     // Toast is now handled by the outer div's onClick
   };
 
-  // 💡 NEW: Handler สำหรับช่องกรอกความกว้างโลโก้
-  const handleCustomWidthChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCustomWidthInput(value);
-    const numValue = parseFloat(value);
-    // ตั้งค่า 0 ถ้าเป็น NaN หรือค่าน้อยกว่าหรือเท่ากับ 0
-    setCustomLogoWidth(isNaN(numValue) || numValue <= 0 ? 0 : numValue);
-  };
-
-  // 💡 NEW: Handler สำหรับช่องกรอกความสูงโลโก้
+  // 💡 UPDATED: Handler สำหรับช่องกรอกความสูงโลโก้
   const handleCustomHeightChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setCustomHeightInput(value);
@@ -349,9 +340,8 @@ export default function DocumentEditor() {
       // 💡 CHANGED: Pass logoBase64 instead of logoUrl
       logoUrl: disableLogo ? "" : logoBase64,
       logoAspectRatio,
-      // 💡 NEW: Custom Logo Size Parameters
+      // 💡 UPDATED: ลบ logoCustomWidth ออก
       useCustomLogoSize: useCustomSize,
-      logoCustomWidth: customLogoWidth,
       logoCustomHeight: customLogoHeight,
     });
   }, [
@@ -363,9 +353,8 @@ export default function DocumentEditor() {
     logoBase64, // CHANGED DEPENDENCY
     disableLogo,
     logoAspectRatio,
-    // 💡 NEW DEPENDENCIES
+    // 💡 UPDATED DEPENDENCIES: ลบ customLogoWidth ออก
     useCustomSize,
-    customLogoWidth,
     customLogoHeight,
   ]);
 
@@ -791,31 +780,10 @@ export default function DocumentEditor() {
                         className="data-[state=checked]:bg-green-600"
                       />
                     </div>
-                    {/* Input Custom Width/Height */}
+
+                    {/* Input Custom Height ONLY */}
                     <div className="flex space-x-2">
-                      {/* Width Input */}
-                      <div className="flex-1 space-y-1">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                          ความกว้าง (Width - mm)
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={customWidthInput}
-                          onChange={handleCustomWidthChange}
-                          disabled={!isLogoEnabled || !useCustomSize}
-                          placeholder="15"
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
-                            ${
-                              !isLogoEnabled || !useCustomSize
-                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                            }
-                        `}
-                        />
-                      </div>
-                      {/* Height Input */}
+                      {/* Height Input (เต็มความกว้าง) */}
                       <div className="flex-1 space-y-1">
                         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                           ความสูง (Height - mm)
@@ -842,26 +810,24 @@ export default function DocumentEditor() {
                     {/* Clear Custom Size Button (optional but helpful) */}
                     <Button
                       onClick={() => {
-                        setCustomWidthInput("15");
-                        setCustomLogoWidth(15);
+                        // 💡 UPDATED: ตั้งค่าเฉพาะ Height
                         setCustomHeightInput("15");
                         setCustomLogoHeight(15);
                         toast.success(
-                          "ตั้งค่าขนาดโลโก้เริ่มต้น (15x15mm) แล้ว"
+                          "ตั้งค่าความสูงโลโก้เริ่มต้น (15mm) แล้ว"
                         );
                       }}
                       variant="outline"
                       size="sm"
-                      title="ตั้งค่าขนาดโลโก้เป็น 15x15 มม."
+                      title="ตั้งค่าความสูงโลโก้เป็น 15 มม."
                       disabled={!isLogoEnabled || !useCustomSize}
                       className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200 transition-colors w-full"
                     >
-                      ตั้งค่ากลับเป็น 15x15 mm
+                      ตั้งค่ากลับเป็น 15 mm
                     </Button>
                     <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-                      หาก *ปิดใช้งาน* กำหนดขนาดเอง:
-                      ระบบจะคำนวณความกว้างอัตโนมัติจากอัตราส่วน (Aspect Ratio)
-                      โดยใช้ความสูงสูงสุด 23.5 มม. (ตามที่ระบุไว้ในส่วนหัว)
+                      ระบบจะคำนวณความกว้าง (Width) อัตโนมัติ
+                      โดยรักษาอัตราส่วนภาพ (Aspect Ratio) เดิมของโลโก้ไว้เสมอ
                     </p>
                   </div>
                   {/* --- สิ้นสุด ส่วนกำหนดขนาดเอง --- */}
