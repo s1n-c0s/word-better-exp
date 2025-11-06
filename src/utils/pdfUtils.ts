@@ -105,7 +105,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
   const recipientLineSpacing: number = isA4Landscape ? 12 : 9;
   const recipientFontSize: number = isA4Landscape ? 26 : 20;
   // ค่าสำหรับบรรทัดสุดท้าย (รหัสไปรษณีย์)
-  const recipientPostalYOffset: number = isA4Landscape ? 39 : 28;
+  const recipientPostalYOffset: number = isA4Landscape ? 35 : 28;
 
   // 💡 Instantiate jsPDF with dynamic options
   const pdf = new jsPDF(pdfOptions);
@@ -120,6 +120,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
 
     // --- 2. Sender Address
     let senderY = senderYStart;
+    let isFirstSenderLineDrawn = false; // 💡 Flag เพื่อติดตามว่าบรรทัดแรกถูกวาดแล้วหรือยัง
 
     // 💡 3. กำหนดขนาดโลโก้
     let finalLogoWidth: number;
@@ -160,23 +161,33 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     pdf.setFontSize(senderFontSize);
     pdf.setTextColor(0, 0, 0);
 
-    // Document Number (Bold)
-    pdf.setFont(SARABUN_FONT, "bold");
-    pdf.text(senderData.documentNumber, senderX, senderY);
-    senderY += lineSpacing;
-
-    // Remaining sender info (Normal)
-    pdf.setFont(SARABUN_FONT, "normal");
     const senderLines = [
+      senderData.documentNumber,
       senderData.senderOrg,
       senderData.senderUniversity,
       senderData.senderAddress1,
       senderData.senderAddress2,
       senderData.senderPostal,
     ];
+
+    // 💡 MODIFIED LOGIC: Loop through all sender lines and apply bold/normal formatting dynamically
     senderLines.forEach((line) => {
-      pdf.text(line, senderX, senderY);
-      senderY += lineSpacing;
+      // ตรวจสอบว่าบรรทัดนั้นมีข้อมูลหรือไม่
+      const trimmedLine = line ? line.trim() : "";
+
+      if (trimmedLine.length > 0) {
+        // กำหนดรูปแบบตัวอักษร: Bold สำหรับบรรทัดแรกที่ถูกวาด, Normal สำหรับบรรทัดถัดไป
+        if (!isFirstSenderLineDrawn) {
+          pdf.setFont(SARABUN_FONT, "bold");
+          isFirstSenderLineDrawn = true;
+        } else {
+          pdf.setFont(SARABUN_FONT, "normal");
+        }
+
+        // วาดข้อความและเลื่อนตำแหน่ง Y
+        pdf.text(trimmedLine, senderX, senderY);
+        senderY += lineSpacing;
+      }
     });
 
     // --- 3. Stamp Box

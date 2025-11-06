@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText, X } from "lucide-react";
 // 💡 Import toast and Toaster
@@ -15,6 +17,8 @@ import {
   initialSender,
   DEFAULT_STAMP_TEXT,
   EXAMPLE_LOGO_URL,
+  FOUNDATION_SENDER_INPUT_STRING, // 💡 NEW IMPORT
+  FOUNDATION_SENDER_DATA, // 💡 NEW IMPORT
 } from "./constants";
 // 💡 Import utility functions
 import { createPdfDataUri } from "./utils/pdfUtils";
@@ -116,6 +120,23 @@ export default function DocumentEditor() {
     const value = e.target.value;
     setSenderInput(value);
     parseSenderInput(value);
+  };
+
+  // 💡 NEW: Hotkey Handler for Sender Input (Tab fills Foundation Data)
+  const handleSenderInputKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    // If Tab is pressed and the input is currently empty, fill with Foundation data.
+    if (e.key === "Tab" && senderInput.trim() === "") {
+      e.preventDefault();
+
+      // Use the imported constant string to fill the input box
+      setSenderInput(FOUNDATION_SENDER_INPUT_STRING);
+      // Use the structured data constant to update the parsed data state
+      setSenderData(FOUNDATION_SENDER_DATA);
+
+      toast.success("กรอกข้อมูลผู้ส่ง (วิทยาลัยฯ) ด้วย Tab เรียบร้อยแล้ว");
+    }
   };
 
   // Handler สำหรับช่องกรอกข้อมูลผู้รับ
@@ -408,9 +429,6 @@ export default function DocumentEditor() {
   const isStampEnabled = !disableStamp;
   const isLogoEnabled = !disableLogo;
 
-  // 💡 REMOVED: currentAspectRatio variable is no longer needed in JSX for sizing
-  // const currentAspectRatio = paperSize === "A4" ? A4_W_H_RATIO : CUSTOM_W_H_RATIO;
-
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
       <Toaster position="bottom-center" />
@@ -444,7 +462,7 @@ export default function DocumentEditor() {
           {/* 💡 UPDATED: Preview Panel - Full area, fills 100% of w/h */}
           <div className="flex-1 lg:w-3/5 overflow-auto p-0 bg-gray-100 dark:bg-gray-900">
             {pdfUrl ? (
-              // 💡 FIX: The iframe fills the entire panel area (100% width, 100% height)
+              // 💡 The iframe fills the entire panel area (100% width, 100% height)
               <iframe
                 title="PDF Preview"
                 src={pdfUrl}
@@ -452,7 +470,7 @@ export default function DocumentEditor() {
                 // shadow-xl bg-white: Kept to visually represent the paper filling the area
                 className="w-full h-full border-none shadow-xl bg-white"
                 style={
-                  // Inline styles removed as requested, using only w-full h-full classes
+                  // Inline styles removed as requested
                   {}
                 }
               />
@@ -543,6 +561,7 @@ export default function DocumentEditor() {
                 <textarea
                   value={senderInput}
                   onChange={handleSenderChange}
+                  onKeyDown={handleSenderInputKeyDown} // 💡 NEW: Hotkey for Tab (fills Foundation data)
                   rows={6}
                   placeholder={`
 1. เลขที่หนังสือ
