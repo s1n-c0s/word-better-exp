@@ -431,7 +431,6 @@ export default function DocumentEditor() {
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
-      <div className="font-anuphan h-screen w-full bg-gray-100 dark:bg-gray-900"></div>
       <Toaster position="bottom-center" />
       <div className="h-full flex flex-col">
         {/* Header */}
