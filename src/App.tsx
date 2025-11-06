@@ -50,6 +50,13 @@ export default function DocumentEditor() {
   const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
   const [disableLogo, setDisableLogo] = useState(false);
 
+  // 💡 NEW: Custom Logo Size States
+  const [useCustomSize, setUseCustomSize] = useState(false);
+  const [customWidthInput, setCustomWidthInput] = useState("15"); // Input: Width (mm)
+  const [customHeightInput, setCustomHeightInput] = useState("15"); // Input: Height (mm)
+  const [customLogoWidth, setCustomLogoWidth] = useState(15); // Parsed value
+  const [customLogoHeight, setCustomLogoHeight] = useState(15); // Parsed value
+
   // --- Handlers & Parsers (Kept as useCallback since they use setXData) ---
 
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
@@ -57,7 +64,7 @@ export default function DocumentEditor() {
     const lines = input
       .split("\n")
       .map((line: string) => line.trim())
-      .filter((line) => line.length > 0);
+      .filter((line: string) => line.length > 0);
 
     setSenderData({
       documentNumber: lines[0] || "",
@@ -74,7 +81,7 @@ export default function DocumentEditor() {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
 
-    const trimmedLines = lines.filter((line) => line.length > 0);
+    const trimmedLines = lines.filter((line: string) => line.length > 0);
 
     for (let i = 0; i < trimmedLines.length; i += RECIPIENT_LINES_PER_BLOCK) {
       const block = trimmedLines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
@@ -155,6 +162,30 @@ export default function DocumentEditor() {
   const handleGreetingPositionChange = (checked: boolean) => {
     setGreetingPosition(checked ? "top" : "left");
     // 💡 REMOVED: Toast is now handled by the outer div's onClick
+  };
+
+  // 💡 NEW: Handler สำหรับ Switch ขนาดโลโก้
+  const handleCustomSizeSwitchChange = (checked: boolean) => {
+    setUseCustomSize(checked);
+    // Toast is now handled by the outer div's onClick
+  };
+
+  // 💡 NEW: Handler สำหรับช่องกรอกความกว้างโลโก้
+  const handleCustomWidthChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomWidthInput(value);
+    const numValue = parseFloat(value);
+    // ตั้งค่า 0 ถ้าเป็น NaN หรือค่าน้อยกว่าหรือเท่ากับ 0
+    setCustomLogoWidth(isNaN(numValue) || numValue <= 0 ? 0 : numValue);
+  };
+
+  // 💡 NEW: Handler สำหรับช่องกรอกความสูงโลโก้
+  const handleCustomHeightChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomHeightInput(value);
+    const numValue = parseFloat(value);
+    // ตั้งค่า 0 ถ้าเป็น NaN หรือค่าน้อยกว่าหรือเท่ากับ 0
+    setCustomLogoHeight(isNaN(numValue) || numValue <= 0 ? 0 : numValue);
   };
 
   // --- Effects ---
@@ -318,6 +349,10 @@ export default function DocumentEditor() {
       // 💡 CHANGED: Pass logoBase64 instead of logoUrl
       logoUrl: disableLogo ? "" : logoBase64,
       logoAspectRatio,
+      // 💡 NEW: Custom Logo Size Parameters
+      useCustomLogoSize: useCustomSize,
+      logoCustomWidth: customLogoWidth,
+      logoCustomHeight: customLogoHeight,
     });
   }, [
     recipientsData,
@@ -328,6 +363,10 @@ export default function DocumentEditor() {
     logoBase64, // CHANGED DEPENDENCY
     disableLogo,
     logoAspectRatio,
+    // 💡 NEW DEPENDENCIES
+    useCustomSize,
+    customLogoWidth,
+    customLogoHeight,
   ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
@@ -412,92 +451,6 @@ export default function DocumentEditor() {
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
-                {/* --- ส่วนโลโก้ (Logo) --- */}
-                {/* 💡 Heading ที่ไม่มีปุ่มล้าง */}
-                <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
-                  โลโก้ (Logo) **H: 23.5mm**
-                </h2>
-
-                {/* 💡 Logo Toggle Section */}
-                <div
-                  className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer"
-                  onClick={() => {
-                    // ADDED onClick handler
-                    handleLogoSwitchChange(!isLogoEnabled);
-                    if (!isLogoEnabled) {
-                      toast.success("เปิดใช้งานโลโก้");
-                    } else {
-                      toast("ปิดใช้งานโลโก้", { icon: "🔒" });
-                    }
-                  }}
-                >
-                  <label
-                    htmlFor="logo-toggle"
-                    className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
-                  >
-                    สถานะโลโก้: **
-                    {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
-                  </label>
-                  <Switch
-                    id="logo-toggle"
-                    checked={isLogoEnabled} // Checked means enabled
-                    onCheckedChange={handleLogoSwitchChange}
-                    className="data-[state=checked]:bg-green-500"
-                  />
-                </div>
-                {/* End Logo Toggle Section */}
-
-                {/* 💡 Input Link URL + Clear Button */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    ลิงก์โลโก้ (URL/Data URI)
-                  </label>
-                  <div className="flex space-x-2 items-center">
-                    {" "}
-                    {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
-                    <input
-                      type="text"
-                      value={logoUrl}
-                      onChange={handleLogoUrlChange}
-                      onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
-                      disabled={!isLogoEnabled}
-                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
-                      // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
-                      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
-                            ${
-                              !isLogoEnabled
-                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
-                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                            }
-                        `}
-                    />
-                    {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
-                    <Button
-                      onClick={() => {
-                        setLogoUrl("");
-                        toast.error("ล้างลิงก์โลโก้เรียบร้อยแล้ว", {
-                          icon: "🗑️",
-                        });
-                      }}
-                      variant="icon-destructive"
-                      size="icon-sm"
-                      title="ล้างลิงก์โลโก้"
-                      disabled={!isLogoEnabled || !logoUrl}
-                      className="w-10 h-10 shrink-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* {logoUrl && isLogoEnabled && (
-                  <p className="text-xs text-teal-600 dark:text-teal-400 font-medium whitespace-nowrap overflow-x-auto p-1 bg-teal-50 dark:bg-teal-900/40 rounded">
-                    **Current URL:** {logoUrl} <br />
-                    **Calculated Ratio (W/H):** {logoAspectRatio.toFixed(2)}
-                  </p>
-                )} */}
-                {/* --- สิ้นสุด โลโก้ --- */}
-
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
                 <div className="flex justify-between items-end">
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
@@ -720,6 +673,200 @@ export default function DocumentEditor() {
                   />
                 </div>
                 {/* End Toggle and Input Area */}
+
+                {/* 💡 ส่วนโลโก้ (Logo) ที่ย้ายมาด้านล่างสุด */}
+                <div className="pt-4">
+                  <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
+                    โลโก้ (Logo) **H: 23.5mm**
+                  </h2>
+
+                  {/* 💡 Logo Toggle Section */}
+                  <div
+                    className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer mt-3"
+                    onClick={() => {
+                      // ADDED onClick handler
+                      handleLogoSwitchChange(!isLogoEnabled);
+                      if (!isLogoEnabled) {
+                        toast.success("เปิดใช้งานโลโก้");
+                      } else {
+                        toast("ปิดใช้งานโลโก้", { icon: "🔒" });
+                      }
+                    }}
+                  >
+                    <label
+                      htmlFor="logo-toggle"
+                      className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
+                    >
+                      สถานะโลโก้: **
+                      {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
+                    </label>
+                    <Switch
+                      id="logo-toggle"
+                      checked={isLogoEnabled} // Checked means enabled
+                      onCheckedChange={handleLogoSwitchChange}
+                      className="data-[state=checked]:bg-green-500"
+                    />
+                  </div>
+                  {/* End Logo Toggle Section */}
+
+                  {/* 💡 Input Link URL + Clear Button */}
+                  <div className="space-y-1 pt-3">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      ลิงก์โลโก้ (URL/Data URI)
+                    </label>
+                    <div className="flex space-x-2 items-center">
+                      {" "}
+                      {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
+                      <input
+                        type="text"
+                        value={logoUrl}
+                        onChange={handleLogoUrlChange}
+                        onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
+                        disabled={!isLogoEnabled}
+                        placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
+                        // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
+                        className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                      />
+                      {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
+                      <Button
+                        onClick={() => {
+                          setLogoUrl("");
+                          toast.error("ล้างลิงก์โลโก้เรียบร้อยแล้ว", {
+                            icon: "🗑️",
+                          });
+                        }}
+                        variant="icon-destructive"
+                        size="icon-sm"
+                        title="ล้างลิงก์โลโก้"
+                        disabled={!isLogoEnabled || !logoUrl}
+                        className="w-10 h-10 shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* --- สิ้นสุด โลโก้ (Logo URL) --- */}
+
+                  {/* 💡 NEW: ส่วนกำหนดขนาดเอง (Custom Size) */}
+                  <div className="space-y-3 pt-4">
+                    {/* Toggle Custom Size */}
+                    <div
+                      className={`flex justify-between items-center p-3 rounded-md border cursor-pointer ${
+                        !isLogoEnabled
+                          ? "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
+                          : "bg-green-50 dark:bg-green-900/40 border-green-300/50 dark:border-green-800"
+                      }`}
+                      onClick={() => {
+                        if (!isLogoEnabled) return;
+                        handleCustomSizeSwitchChange(!useCustomSize);
+                        if (!useCustomSize) {
+                          toast.success("กลับไปใช้การคำนวณอัตราส่วน");
+                        } else {
+                          toast.success("เปิดใช้งานกำหนดขนาดเอง");
+                        }
+                      }}
+                    >
+                      <label
+                        htmlFor="custom-size-toggle"
+                        className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
+                      >
+                        ใช้ขนาดกำหนดเอง (mm): **
+                        {useCustomSize
+                          ? "เปิดใช้งาน"
+                          : "ปิดใช้งาน (ใช้ Aspect Ratio)"}
+                        **
+                      </label>
+                      <Switch
+                        id="custom-size-toggle"
+                        checked={useCustomSize}
+                        onCheckedChange={handleCustomSizeSwitchChange}
+                        disabled={!isLogoEnabled}
+                        className="data-[state=checked]:bg-green-600"
+                      />
+                    </div>
+                    {/* Input Custom Width/Height */}
+                    <div className="flex space-x-2">
+                      {/* Width Input */}
+                      <div className="flex-1 space-y-1">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          ความกว้าง (Width - mm)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={customWidthInput}
+                          onChange={handleCustomWidthChange}
+                          disabled={!isLogoEnabled || !useCustomSize}
+                          placeholder="15"
+                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled || !useCustomSize
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                        />
+                      </div>
+                      {/* Height Input */}
+                      <div className="flex-1 space-y-1">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          ความสูง (Height - mm)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={customHeightInput}
+                          onChange={handleCustomHeightChange}
+                          disabled={!isLogoEnabled || !useCustomSize}
+                          placeholder="15"
+                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled || !useCustomSize
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Clear Custom Size Button (optional but helpful) */}
+                    <Button
+                      onClick={() => {
+                        setCustomWidthInput("15");
+                        setCustomLogoWidth(15);
+                        setCustomHeightInput("15");
+                        setCustomLogoHeight(15);
+                        toast.success(
+                          "ตั้งค่าขนาดโลโก้เริ่มต้น (15x15mm) แล้ว"
+                        );
+                      }}
+                      variant="outline"
+                      size="sm"
+                      title="ตั้งค่าขนาดโลโก้เป็น 15x15 มม."
+                      disabled={!isLogoEnabled || !useCustomSize}
+                      className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200 transition-colors w-full"
+                    >
+                      ตั้งค่ากลับเป็น 15x15 mm
+                    </Button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+                      หาก *ปิดใช้งาน* กำหนดขนาดเอง:
+                      ระบบจะคำนวณความกว้างอัตโนมัติจากอัตราส่วน (Aspect Ratio)
+                      โดยใช้ความสูงสูงสุด 23.5 มม. (ตามที่ระบุไว้ในส่วนหัว)
+                    </p>
+                  </div>
+                  {/* --- สิ้นสุด ส่วนกำหนดขนาดเอง --- */}
+                </div>
+                {/* --- สิ้นสุด ส่วนโลโก้ (Logo) ที่ย้ายมา --- */}
               </div>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { RecipientData, SenderData } from "../types/document";
 const SARABUN_FONT = "THSarabunNew";
 const LOGO_HEIGHT = 23.5; // Fixed height in mm
 
+// 💡 UPDATED: เพิ่มพารามิเตอร์สำหรับขนาดที่กำหนดเอง
 interface PdfGenerationArgs {
   recipientsData: RecipientData[];
   senderData: SenderData;
@@ -16,6 +17,10 @@ interface PdfGenerationArgs {
   greetingPosition: "left" | "top";
   logoUrl: string;
   logoAspectRatio: number;
+  // 💡 NEW: Custom Logo Size Parameters
+  useCustomLogoSize: boolean;
+  logoCustomWidth: number;
+  logoCustomHeight: number;
 }
 
 /**
@@ -33,6 +38,10 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     greetingPosition,
     logoUrl,
     logoAspectRatio,
+    // 💡 NEW: Destructure custom size params
+    useCustomLogoSize,
+    logoCustomWidth,
+    logoCustomHeight,
   } = args;
 
   const pdf = new jsPDF({
@@ -53,10 +62,23 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     pdf.setFont(SARABUN_FONT, "normal");
     pdf.setTextColor(0, 0, 0); // Monochrome Black
 
-    // --- 1. Logo (23.5mm height, variable width)
+    // --- 1. Logo (23.5mm height, variable width OR custom size)
     const logoX = margin;
     const logoY = margin + 10;
-    const logoWidth = LOGO_HEIGHT * logoAspectRatio;
+
+    // 💡 NEW LOGIC: กำหนดขนาดโลโก้
+    let finalLogoWidth: number;
+    let finalLogoHeight: number;
+
+    if (useCustomLogoSize && logoCustomWidth > 0 && logoCustomHeight > 0) {
+      // 1. ใช้ขนาดที่ผู้ใช้กำหนดเอง หากเปิดใช้งานและค่ามากกว่า 0
+      finalLogoWidth = logoCustomWidth;
+      finalLogoHeight = logoCustomHeight;
+    } else {
+      // 2. ใช้การคำนวณจาก Aspect Ratio และความสูงคงที่ (ค่าเริ่มต้น)
+      finalLogoHeight = LOGO_HEIGHT;
+      finalLogoWidth = LOGO_HEIGHT * logoAspectRatio;
+    }
 
     function drawDefaultGaruda() {
       // ฟังก์ชันสำหรับวาดสัญลักษณ์เริ่มต้น (Mock-up)
@@ -104,8 +126,8 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
           "PNG", // Assuming PNG or compatible format
           logoX,
           logoY,
-          logoWidth,
-          LOGO_HEIGHT
+          finalLogoWidth, // 💡 UPDATED
+          finalLogoHeight // 💡 UPDATED
         );
       } catch (error) {
         console.error("Error adding image to PDF from URL:", error);
