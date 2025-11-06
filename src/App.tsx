@@ -1,13 +1,9 @@
-// src/App.tsx
-
 import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { Download, FileText, X } from "lucide-react";
 // 💡 Import toast and Toaster
 import toast, { Toaster } from "react-hot-toast";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-// 💡 NEW: Import Tabs components
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // 💡 Import external types and constants
 import { RecipientData, SenderData } from "./types/document";
@@ -17,8 +13,6 @@ import {
   initialSender,
   DEFAULT_STAMP_TEXT,
   EXAMPLE_LOGO_URL,
-  FOUNDATION_SENDER_INPUT_STRING, // 💡 NEW IMPORT
-  FOUNDATION_SENDER_DATA, // 💡 NEW IMPORT
 } from "./constants";
 // 💡 Import utility functions
 import { createPdfDataUri } from "./utils/pdfUtils";
@@ -30,11 +24,6 @@ import {
 // ไฟล์ฟอนต์ที่ถูกแปลงแล้ว: ตรวจสอบให้แน่ใจว่าไฟล์เหล่านี้ถูกโหลดในโปรเจกต์ของคุณ
 import "./fonts/thsarabunnew-normal.js";
 import "./fonts/thsarabunnew-bold.js";
-
-// 💡 NEW: Paper Size Constants (ในหน่วย mm)
-const CUSTOM_PAPER_WIDTH_MM = 108; // ความกว้างเดิม (ใช้เป็น Height เมื่อเป็นแนวนอน)
-const CUSTOM_PAPER_HEIGHT_MM = 235; // ความสูงเดิม (ใช้เป็น Width เมื่อเป็นแนวนอน)
-const CUSTOM_PAPER_LABEL = `10.8 x 23.5 ซม.`;
 
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
@@ -61,16 +50,6 @@ export default function DocumentEditor() {
   const [logoAspectRatio, setLogoAspectRatio] = useState<number>(1);
   const [disableLogo, setDisableLogo] = useState(false);
 
-  // 💡 UPDATED: Custom Logo Size States - ลบ Width ออก
-  const [useCustomSize, setUseCustomSize] = useState(false);
-  // 💡 REMOVED: customWidthInput
-  const [customHeightInput, setCustomHeightInput] = useState("15"); // Input: Height (mm)
-  // 💡 REMOVED: customLogoWidth
-  const [customLogoHeight, setCustomLogoHeight] = useState(15); // Parsed value
-
-  // 💡 NEW: Paper Size State
-  const [paperSize, setPaperSize] = useState<"A4" | "Custom108x235">("A4");
-
   // --- Handlers & Parsers (Kept as useCallback since they use setXData) ---
 
   // Parse ข้อมูลผู้ส่ง (6 บรรทัด)
@@ -78,7 +57,7 @@ export default function DocumentEditor() {
     const lines = input
       .split("\n")
       .map((line: string) => line.trim())
-      .filter((line: string) => line.length > 0);
+      .filter((line) => line.length > 0);
 
     setSenderData({
       documentNumber: lines[0] || "",
@@ -95,7 +74,7 @@ export default function DocumentEditor() {
     const lines = input.split("\n").map((line: string) => line.trim());
     const newRecipients: RecipientData[] = [];
 
-    const trimmedLines = lines.filter((line: string) => line.length > 0);
+    const trimmedLines = lines.filter((line) => line.length > 0);
 
     for (let i = 0; i < trimmedLines.length; i += RECIPIENT_LINES_PER_BLOCK) {
       const block = trimmedLines.slice(i, i + RECIPIENT_LINES_PER_BLOCK);
@@ -122,23 +101,6 @@ export default function DocumentEditor() {
     parseSenderInput(value);
   };
 
-  // 💡 NEW: Hotkey Handler for Sender Input (Tab fills Foundation Data)
-  const handleSenderInputKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
-    // If Tab is pressed and the input is currently empty, fill with Foundation data.
-    if (e.key === "Tab" && senderInput.trim() === "") {
-      e.preventDefault();
-
-      // Use the imported constant string to fill the input box
-      setSenderInput(FOUNDATION_SENDER_INPUT_STRING);
-      // Use the structured data constant to update the parsed data state
-      setSenderData(FOUNDATION_SENDER_DATA);
-
-      toast.success("กรอกข้อมูลผู้ส่ง (วิทยาลัยฯ) ด้วย Tab เรียบร้อยแล้ว");
-    }
-  };
-
   // Handler สำหรับช่องกรอกข้อมูลผู้รับ
   const handleRecipientChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -155,13 +117,13 @@ export default function DocumentEditor() {
   // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
-    // Toast Logic ถูกย้ายไปที่ onClick ของ div
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
   const handleLogoSwitchChange = (checked: boolean) => {
     setDisableLogo(!checked);
-    // Toast Logic ถูกย้ายไปที่ onClick ของ div
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
@@ -192,22 +154,7 @@ export default function DocumentEditor() {
   // 💡 Handler สำหรับ Switch ตำแหน่งคำขึ้นต้น
   const handleGreetingPositionChange = (checked: boolean) => {
     setGreetingPosition(checked ? "top" : "left");
-    // Toast Logic ถูกย้ายไปที่ onClick ของ div
-  };
-
-  // 💡 NEW: Handler สำหรับ Switch ขนาดโลโก้
-  const handleCustomSizeSwitchChange = (checked: boolean) => {
-    setUseCustomSize(checked);
-    // Toast Logic ถูกย้ายไปที่ onClick ของ div
-  };
-
-  // 💡 UPDATED: Handler สำหรับช่องกรอกความสูงโลโก้
-  const handleCustomHeightChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCustomHeightInput(value);
-    const numValue = parseFloat(value);
-    // ตั้งค่า 0 ถ้าเป็น NaN หรือค่าน้อยกว่าหรือเท่ากับ 0
-    setCustomLogoHeight(isNaN(numValue) || numValue <= 0 ? 0 : numValue);
+    // 💡 REMOVED: Toast is now handled by the outer div's onClick
   };
 
   // --- Effects ---
@@ -361,16 +308,6 @@ export default function DocumentEditor() {
   // --- PDF Generation Logic (Callback to Utility) ---
 
   const generatePdfDataUri = useCallback(() => {
-    // 💡 NEW: Define paper size options based on state
-    const paperSizeOptions =
-      paperSize === "A4"
-        ? { format: "A4" } // Pass format name
-        : {
-            // Pass custom dimensions (in mm)
-            width: CUSTOM_PAPER_WIDTH_MM,
-            height: CUSTOM_PAPER_HEIGHT_MM,
-          };
-
     // Call the external utility function
     return createPdfDataUri({
       recipientsData,
@@ -381,11 +318,6 @@ export default function DocumentEditor() {
       // 💡 CHANGED: Pass logoBase64 instead of logoUrl
       logoUrl: disableLogo ? "" : logoBase64,
       logoAspectRatio,
-      // 💡 UPDATED: ลบ logoCustomWidth ออก
-      useCustomLogoSize: useCustomSize,
-      logoCustomHeight: customLogoHeight,
-      // 💡 NEW: Pass paper size options
-      paperSizeOptions,
     });
   }, [
     recipientsData,
@@ -396,10 +328,6 @@ export default function DocumentEditor() {
     logoBase64, // CHANGED DEPENDENCY
     disableLogo,
     logoAspectRatio,
-    // 💡 UPDATED DEPENDENCIES: ลบ customLogoWidth ออก
-    useCustomSize,
-    customLogoHeight,
-    paperSize, // 💡 NEW DEPENDENCY
   ]);
 
   // Effect สำหรับอัปเดต Preview ทุกครั้งที่ข้อมูลเปลี่ยน
@@ -431,7 +359,6 @@ export default function DocumentEditor() {
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
-      <div className="font-anuphan h-screen w-full bg-gray-100 dark:bg-gray-900"></div>
       <Toaster position="bottom-center" />
       <div className="h-full flex flex-col">
         {/* Header */}
@@ -460,94 +387,119 @@ export default function DocumentEditor() {
 
         {/* --- Main Content: ส่วน Preview PDF และ Input Box ใหม่ --- */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* 💡 UPDATED: Preview Panel - Full area, fills 100% of w/h */}
-          <div className="flex-1 lg:w-3/5 overflow-auto p-0 bg-gray-100 dark:bg-gray-900">
-            {pdfUrl ? (
-              // 💡 The iframe fills the entire panel area (100% width, 100% height)
-              <iframe
-                title="PDF Preview"
-                src={pdfUrl}
-                // w-full h-full: Fills the entire visible panel area (100% width, 100% height)
-                // shadow-xl bg-white: Kept to visually represent the paper filling the area
-                className="w-full h-full border-none shadow-xl bg-white"
-                style={
-                  // Inline styles removed as requested
-                  {}
-                }
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-500">
-                กำลังโหลด PDF Preview...
-              </div>
-            )}
+          {/* Preview Panel */}
+          <div className="flex-1 lg:w-3/5 overflow-auto p-4 lg:p-8 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+            <div
+              className={`transition-all bg-white shadow-xl
+                w-full max-w-[95%] aspect-[1.414/1] 
+                p-2`}
+            >
+              {pdfUrl ? (
+                <iframe
+                  title="PDF Preview"
+                  src={pdfUrl}
+                  className="w-full h-full border-none"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  กำลังโหลด PDF Preview...
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 💡 Input Panel ใหม่: แยกช่องกรอกผู้ส่ง/ผู้รับ */}
           <div className="w-full lg:w-2/5 bg-white dark:bg-gray-800 overflow-auto border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
             <div className="p-3 lg:p-4">
               <div className="max-w-xl mx-auto space-y-3 lg:space-y-4">
-                {/* 💡 NEW: Tab Component for Paper Size Selection */}
-                <div className="pt-2">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-red-700 dark:text-red-400 border-b border-red-100 pb-1">
-                    เลือกขนาดซองจดหมาย / กระดาษ
-                  </h2>
+                {/* --- ส่วนโลโก้ (Logo) --- */}
+                {/* 💡 Heading ที่ไม่มีปุ่มล้าง */}
+                <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
+                  โลโก้ (Logo) **H: 23.5mm**
+                </h2>
 
-                  <Tabs
-                    defaultValue="A4"
-                    value={paperSize}
-                    onValueChange={(value) => {
-                      setPaperSize(value as "A4" | "Custom108x235");
-                      // 💡 ADDED: Toast Message เมื่อเปลี่ยน Tab
-                      if (value === "Custom108x235") {
-                        toast("เลือกซองจดหมายขนาด 10.8x23.5 ซม. (แนวนอน)", {
-                          icon: "✉️",
-                          duration: 2000,
-                        });
-                      } else {
-                        toast.success("กลับไปใช้ขนาด A4 มาตรฐานแล้ว", {
-                          duration: 2000,
-                        });
-                      }
-                    }}
-                    className="w-full mt-3"
+                {/* 💡 Logo Toggle Section */}
+                <div
+                  className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer"
+                  onClick={() => {
+                    // ADDED onClick handler
+                    handleLogoSwitchChange(!isLogoEnabled);
+                    if (!isLogoEnabled) {
+                      toast.success("เปิดใช้งานโลโก้");
+                    } else {
+                      toast("ปิดใช้งานโลโก้", { icon: "🔒" });
+                    }
+                  }}
+                >
+                  <label
+                    htmlFor="logo-toggle"
+                    className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                   >
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger
-                        value="A4"
-                        // 💡 FIXED: เพิ่มสีแดงอ่อนเมื่อ Active
-                        className="font-semibold text-base data-[state=active]:bg-red-100 dark:data-[state=active]:bg-red-900/40 data-[state=active]:text-red-700 dark:data-[state=active]:text-red-300"
-                      >
-                        A4 (21 x 29.7 ซม.)
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="Custom108x235"
-                        // 💡 FIXED: ใช้คลาสเดียวกันเพื่อให้ Current Tab เป็นสีแดงเสมอ
-                        className="font-semibold text-base data-[state=active]:bg-red-100 dark:data-[state=active]:bg-red-900/40 data-[state=active]:text-red-700 dark:data-[state=active]:text-red-300"
-                        // 💡 Tooltip for envelope size
-                        title={`ซองจดหมายขนาด ${CUSTOM_PAPER_WIDTH_MM}x${CUSTOM_PAPER_HEIGHT_MM} มม.`}
-                      >
-                        ซองจดหมาย {CUSTOM_PAPER_LABEL}
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent
-                      value="A4"
-                      className="pt-4 text-sm text-gray-600 dark:text-gray-400"
-                    >
-                      ใช้สำหรับขนาด A4 แนวนอนมาตรฐาน (297 x 210 มม.)
-                    </TabsContent>
-                    <TabsContent
-                      value="Custom108x235"
-                      // 💡 ADDED: เพิ่มพื้นหลังสีแดงอ่อนและขอบ
-                      className="pt-4 text-sm text-gray-600 dark:text-gray-400 bg-red-50/50 dark:bg-red-950/30 p-4 rounded-md border border-red-200 dark:border-red-800"
-                    >
-                      ใช้สำหรับซองจดหมายขนาดกำหนดเอง (235 x 108 มม. แนวนอน)
-                    </TabsContent>
-                  </Tabs>
+                    สถานะโลโก้: **
+                    {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
+                  </label>
+                  <Switch
+                    id="logo-toggle"
+                    checked={isLogoEnabled} // Checked means enabled
+                    onCheckedChange={handleLogoSwitchChange}
+                    className="data-[state=checked]:bg-green-500"
+                  />
                 </div>
-                {/* --- End Paper Size Tabs --- */}
+                {/* End Logo Toggle Section */}
+
+                {/* 💡 Input Link URL + Clear Button */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    ลิงก์โลโก้ (URL/Data URI)
+                  </label>
+                  <div className="flex space-x-2 items-center">
+                    {" "}
+                    {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
+                    <input
+                      type="text"
+                      value={logoUrl}
+                      onChange={handleLogoUrlChange}
+                      onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
+                      disabled={!isLogoEnabled}
+                      placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
+                      // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
+                      className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
+                            ${
+                              !isLogoEnabled
+                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
+                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                            }
+                        `}
+                    />
+                    {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
+                    <Button
+                      onClick={() => {
+                        setLogoUrl("");
+                        toast.error("ล้างลิงก์โลโก้เรียบร้อยแล้ว", {
+                          icon: "🗑️",
+                        });
+                      }}
+                      variant="icon-destructive"
+                      size="icon-sm"
+                      title="ล้างลิงก์โลโก้"
+                      disabled={!isLogoEnabled || !logoUrl}
+                      className="w-10 h-10 shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* {logoUrl && isLogoEnabled && (
+                  <p className="text-xs text-teal-600 dark:text-teal-400 font-medium whitespace-nowrap overflow-x-auto p-1 bg-teal-50 dark:bg-teal-900/40 rounded">
+                    **Current URL:** {logoUrl} <br />
+                    **Calculated Ratio (W/H):** {logoAspectRatio.toFixed(2)}
+                  </p>
+                )} */}
+                {/* --- สิ้นสุด โลโก้ --- */}
 
                 {/* --- ส่วนข้อมูลผู้ส่ง (6 บรรทัด) --- */}
-                <div className="flex justify-between items-end pt-4">
+                <div className="flex justify-between items-end">
                   <h2 className="text-lg lg:text-xl font-extrabold text-blue-700 dark:text-blue-400 border-b border-blue-100 pb-1">
                     ข้อมูลผู้ส่ง (Sender - 6 บรรทัด)
                   </h2>
@@ -576,7 +528,6 @@ export default function DocumentEditor() {
                 <textarea
                   value={senderInput}
                   onChange={handleSenderChange}
-                  onKeyDown={handleSenderInputKeyDown} // 💡 NEW: Hotkey for Tab (fills Foundation data)
                   rows={6}
                   placeholder={`
 1. เลขที่หนังสือ
@@ -663,10 +614,10 @@ export default function DocumentEditor() {
                   <div
                     className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800 cursor-pointer"
                     onClick={() => {
-                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeTop) ก่อน และแก้ไข Toast
-                      const willBeTop = greetingPosition === "left";
-                      handleGreetingPositionChange(willBeTop);
-                      if (willBeTop) {
+                      // ADDED onClick handler
+                      const newChecked = greetingPosition === "left";
+                      handleGreetingPositionChange(newChecked);
+                      if (newChecked) {
                         toast.success(
                           "เปลี่ยนตำแหน่งคำขึ้นต้นเป็น 'เหนือผู้รับ'"
                         );
@@ -688,7 +639,6 @@ export default function DocumentEditor() {
                       checked={greetingPosition === "top"} // True คือ 'top'
                       onCheckedChange={handleGreetingPositionChange}
                       className="data-[state=checked]:bg-blue-500"
-                      onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                     />
                   </div>
                 </div>
@@ -726,10 +676,9 @@ export default function DocumentEditor() {
                 <div
                   className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800 cursor-pointer"
                   onClick={() => {
-                    // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน และแก้ไข Toast
-                    const willBeEnabled = !isStampEnabled;
-                    handleSwitchChange(willBeEnabled);
-                    if (willBeEnabled) {
+                    // ADDED onClick handler
+                    handleSwitchChange(!isStampEnabled);
+                    if (!isStampEnabled) {
                       toast.success("เปิดใช้งานตราประทับ");
                     } else {
                       toast("ปิดใช้งานตราประทับ", { icon: "🔒" });
@@ -737,7 +686,7 @@ export default function DocumentEditor() {
                   }}
                 >
                   <label
-                    // 💡 FIXED: ลบ htmlFor ออก
+                    htmlFor="stamp-toggle"
                     className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
                   >
                     สถานะตราประทับ: **
@@ -748,7 +697,6 @@ export default function DocumentEditor() {
                     checked={isStampEnabled}
                     onCheckedChange={handleSwitchChange}
                     className="data-[state=checked]:bg-purple-500"
-                    onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
                   />
                 </div>
 
@@ -772,185 +720,6 @@ export default function DocumentEditor() {
                   />
                 </div>
                 {/* End Toggle and Input Area */}
-
-                {/* 💡 ส่วนโลโก้ (Logo) ที่ย้ายมาด้านล่างสุด */}
-                <div className="pt-4">
-                  <h2 className="text-lg lg:text-xl font-extrabold text-green-600 dark:text-green-400 border-b border-green-100 pb-1">
-                    โลโก้ (Logo) **H: 23.5mm**
-                  </h2>
-
-                  {/* 💡 Logo Toggle Section */}
-                  <div
-                    className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer mt-3"
-                    onClick={() => {
-                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน และแก้ไข Toast
-                      const willBeEnabled = !isLogoEnabled;
-                      handleLogoSwitchChange(willBeEnabled);
-                      if (willBeEnabled) {
-                        toast.success("เปิดใช้งานโลโก้");
-                      } else {
-                        toast("ปิดใช้งานโลโก้", { icon: "🔒" });
-                      }
-                    }}
-                  >
-                    <label
-                      // 💡 FIXED: ลบ htmlFor ออก
-                      className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
-                    >
-                      สถานะโลโก้: **
-                      {isLogoEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}**
-                    </label>
-                    <Switch
-                      id="logo-toggle"
-                      checked={isLogoEnabled} // Checked means enabled
-                      onCheckedChange={handleLogoSwitchChange}
-                      className="data-[state=checked]:bg-green-500"
-                      onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
-                    />
-                  </div>
-                  {/* End Logo Toggle Section */}
-
-                  {/* 💡 Input Link URL + Clear Button */}
-                  <div className="space-y-1 pt-3">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      ลิงก์โลโก้ (URL/Data URI)
-                    </label>
-                    <div className="flex space-x-2 items-center">
-                      {" "}
-                      {/* จัด Input และ Button ให้อยู่ในแถวเดียวกัน */}
-                      <input
-                        type="text"
-                        value={logoUrl}
-                        onChange={handleLogoUrlChange}
-                        onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
-                        disabled={!isLogoEnabled}
-                        placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
-                        // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
-                        className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
-                            ${
-                              !isLogoEnabled
-                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed" // ปรับให้ตรงกับ textarea
-                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                            }
-                        `}
-                      />
-                      {/* 💡 ปุ่มล้างลิงก์ที่ย้ายมา */}
-                      <Button
-                        onClick={() => {
-                          setLogoUrl("");
-                          toast.error("ล้างลิงก์โลโก้เรียบร้อยแล้ว", {
-                            icon: "🗑️",
-                          });
-                        }}
-                        variant="icon-destructive"
-                        size="icon-sm"
-                        title="ล้างลิงก์โลโก้"
-                        disabled={!isLogoEnabled || !logoUrl}
-                        className="w-10 h-10 shrink-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* --- สิ้นสุด โลโก้ (Logo URL) --- */}
-
-                  {/* 💡 NEW: ส่วนกำหนดขนาดเอง (Custom Size) */}
-                  <div className="space-y-3 pt-4">
-                    {/* Toggle Custom Size */}
-                    <div
-                      className={`flex justify-between items-center p-3 rounded-md border cursor-pointer ${
-                        !isLogoEnabled
-                          ? "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
-                          : "bg-green-50 dark:bg-green-900/40 border-green-300/50 dark:border-green-800"
-                      }`}
-                      onClick={() => {
-                        if (!isLogoEnabled) return;
-                        // 💡 FIXED: คำนวณสถานะใหม่ (willBeCustomSize) ก่อน และแก้ไข Toast
-                        const willBeCustomSize = !useCustomSize;
-                        handleCustomSizeSwitchChange(willBeCustomSize);
-
-                        if (willBeCustomSize) {
-                          // ถ้าสถานะใหม่คือ TRUE (กำหนดเอง)
-                          toast.success("เปิดใช้งานกำหนดขนาดเอง");
-                        } else {
-                          // ถ้าสถานะใหม่คือ FALSE (Aspect Ratio)
-                          toast.success("กลับไปใช้การคำนวณอัตราส่วน");
-                        }
-                      }}
-                    >
-                      <label
-                        // 💡 FIXED: ลบ htmlFor ออก
-                        className="text-sm font-semibold text-gray-900 dark:text-gray-100 cursor-pointer"
-                      >
-                        ใช้ขนาดกำหนดเอง (mm): **
-                        {useCustomSize
-                          ? "เปิดใช้งาน"
-                          : "ปิดใช้งาน (ใช้ Aspect Ratio)"}
-                        **
-                      </label>
-                      <Switch
-                        id="custom-size-toggle"
-                        checked={useCustomSize}
-                        onCheckedChange={handleCustomSizeSwitchChange}
-                        disabled={!isLogoEnabled}
-                        className="data-[state=checked]:bg-green-600"
-                        onClick={(e) => e.stopPropagation()} // 💡 FIXED: ป้องกันการเกิด Double Toggle
-                      />
-                    </div>
-
-                    {/* Input Custom Height ONLY */}
-                    <div className="flex space-x-2">
-                      {/* Height Input (เต็มความกว้าง) */}
-                      <div className="flex-1 space-y-1">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                          ความสูง (Height - mm)
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={customHeightInput}
-                          onChange={handleCustomHeightChange}
-                          disabled={!isLogoEnabled || !useCustomSize}
-                          placeholder="15"
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none 
-                            ${
-                              !isLogoEnabled || !useCustomSize
-                                ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-                                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                            }
-                        `}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Clear Custom Size Button (optional but helpful) */}
-                    <Button
-                      onClick={() => {
-                        // 💡 UPDATED: ตั้งค่าเฉพาะ Height
-                        setCustomHeightInput("15");
-                        setCustomLogoHeight(15);
-                        toast.success(
-                          "ตั้งค่าความสูงโลโก้เริ่มต้น (15mm) แล้ว"
-                        );
-                      }}
-                      variant="outline"
-                      size="sm"
-                      title="ตั้งค่าความสูงโลโก้เป็น 15 มม."
-                      disabled={!isLogoEnabled || !useCustomSize}
-                      className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200 transition-colors w-full"
-                    >
-                      ตั้งค่ากลับเป็น 15 mm
-                    </Button>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-                      ระบบจะคำนวณความกว้าง (Width) อัตโนมัติ
-                      โดยรักษาอัตราส่วนภาพ (Aspect Ratio) เดิมของโลโก้ไว้เสมอ
-                    </p>
-                  </div>
-                  {/* --- สิ้นสุด ส่วนกำหนดขนาดเอง --- */}
-                </div>
-                {/* --- สิ้นสุด ส่วนโลโก้ (Logo) ที่ย้ายมา --- */}
               </div>
             </div>
           </div>
