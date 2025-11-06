@@ -6,7 +6,22 @@ import { RecipientData, SenderData } from "../types/document";
 
 // TH Sarabun New font name (must be loaded in the main app before use)
 const SARABUN_FONT = "THSarabunNew";
-const LOGO_HEIGHT = 23.5; // Fixed height in mm
+const LOGO_HEIGHT = 20.5; // Fixed height in mm (A4 Default)
+
+// 💡 NEW: Interface for jsPDF Options to eliminate 'any'
+interface JsPdfOptions {
+  unit: "mm";
+  orientation?: "portrait" | "landscape";
+  // jsPDF format can be a standard string name or a custom [width, height] array
+  format?: string | [number, number];
+}
+
+// 💡 PaperSizeOptions interface (as sent from App.tsx)
+interface PaperSizeOptions {
+  format?: string; // Known format name, allow string type for robustness
+  width?: number; // Custom width in mm
+  height?: number; // Custom height in mm
+}
 
 interface PdfGenerationArgs {
   recipientsData: RecipientData[];
@@ -16,10 +31,15 @@ interface PdfGenerationArgs {
   greetingPosition: "left" | "top";
   logoUrl: string;
   logoAspectRatio: number;
+  // 💡 UPDATED: Custom Logo Size Parameters - ลบ logoCustomWidth ออก
+  useCustomLogoSize: boolean;
+  logoCustomHeight: number;
+  // 💡 NEW: Paper size configuration
+  paperSizeOptions: PaperSizeOptions;
 }
 
 /**
- * Creates a PDF document (A4 Landscape) containing sender info, stamp, logo,
+ * Creates a PDF document (A4 Landscape or Custom Size) containing sender info, stamp, logo,
  * and recipient details for multiple recipients, ensuring monochrome output.
  * @param args - Arguments including data, layout preferences, and logo details.
  * @returns Data URI string of the generated PDF.
@@ -33,17 +53,62 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     greetingPosition,
     logoUrl,
     logoAspectRatio,
+    // 💡 UPDATED: Destructure custom size params
+    useCustomLogoSize,
+    logoCustomHeight,
+    // 💡 NEW: Destructure paper size options
+    paperSizeOptions,
   } = args;
 
-  const pdf = new jsPDF({
-    orientation: "landscape",
-    unit: "mm",
-    format: "a4",
-  });
+  // 💡 1. Determine PDF format and dimensions dynamically
+  let pageWidth: number;
+  let pageHeight: number;
+  const pdfOptions: JsPdfOptions = { unit: "mm" };
 
-  const pageWidth = 297;
-  const pageHeight = 210;
-  const margin = 20;
+  // 💡 FLAG เพื่อแยกการจัดวาง
+  const isA4Landscape = paperSizeOptions.format === "A4";
+
+  if (isA4Landscape) {
+    // A4 Landscape (297x210 mm)
+    pdfOptions.orientation = "landscape";
+    pdfOptions.format = "a4";
+    pageWidth = 297;
+    pageHeight = 210;
+  } else if (paperSizeOptions.width && paperSizeOptions.height) {
+    // Custom Size (10.8x23.5 ซม. -> สลับเป็นแนวนอน 235x108 มม.)
+    pdfOptions.orientation = "landscape";
+    pdfOptions.format = [paperSizeOptions.height, paperSizeOptions.width];
+    pageWidth = paperSizeOptions.height; // 235 mm
+    pageHeight = paperSizeOptions.width; // 108 mm
+  } else {
+    // Default Fallback: A4 Landscape
+    pdfOptions.orientation = "landscape";
+    pdfOptions.format = "a4";
+    pageWidth = 297;
+    pageHeight = 210;
+  }
+
+  // 💡 2. Define Layout Constants conditionally
+  const margin: number = isA4Landscape ? 20 : 10;
+  const senderX: number = isA4Landscape ? margin : margin + 5;
+  const senderYStart: number = isA4Landscape ? margin + 42 : margin + 15;
+  const lineSpacing: number = isA4Landscape ? 8 : 6;
+  const logoSenderGap: number = isA4Landscape ? 8 : 5;
+  // 💡 NEW: Define default logo height conditionally
+  const defaultLogoHeight: number = isA4Landscape ? LOGO_HEIGHT : 12; // CHANGED: 10mm for custom size
+  const senderFontSize: number = isA4Landscape ? 18 : 14;
+  const stampFontSize: number = isA4Landscape ? 14 : 12;
+  const stampLineSpacing: number = isA4Landscape ? 7 : 5;
+  // 💡 CHANGED: Adjusted factor from 0.45 to 0.44 for 2mm left shift on custom size
+  const recipientBaseXFactor: number = isA4Landscape ? 0.3 : 0.38;
+  const recipientBaseYFactor: number = isA4Landscape ? 0.6 : 0.54;
+  const recipientLineSpacing: number = isA4Landscape ? 12 : 9;
+  const recipientFontSize: number = isA4Landscape ? 26 : 20;
+  // ค่าสำหรับบรรทัดสุดท้าย (รหัสไปรษณีย์)
+  const recipientPostalYOffset: number = isA4Landscape ? 35 : 28;
+
+  // 💡 Instantiate jsPDF with dynamic options
+  const pdf = new jsPDF(pdfOptions);
 
   recipientsData.forEach((data, index) => {
     if (index > 0) {
@@ -53,104 +118,85 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     pdf.setFont(SARABUN_FONT, "normal");
     pdf.setTextColor(0, 0, 0); // Monochrome Black
 
-    // --- 1. Logo (23.5mm height, variable width)
-    const logoX = margin;
-    const logoY = margin + 10;
-    const logoWidth = LOGO_HEIGHT * logoAspectRatio;
+    // --- 2. Sender Address
+    let senderY = senderYStart;
+    let isFirstSenderLineDrawn = false; // 💡 Flag เพื่อติดตามว่าบรรทัดแรกถูกวาดแล้วหรือยัง
 
-    function drawDefaultGaruda() {
-      // ฟังก์ชันสำหรับวาดสัญลักษณ์เริ่มต้น (Mock-up)
-      const placeholderSize = LOGO_HEIGHT;
+    // 💡 3. กำหนดขนาดโลโก้
+    let finalLogoWidth: number;
+    let finalLogoHeight: number;
 
-      // Draw white background circle
-      pdf.setFillColor(255, 255, 255);
-      pdf.circle(
-        logoX + placeholderSize / 2,
-        logoY + placeholderSize / 2,
-        placeholderSize / 2,
-        "F"
-      );
-
-      // Draw black border
-      pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.25);
-      pdf.circle(
-        logoX + placeholderSize / 2,
-        logoY + placeholderSize / 2,
-        placeholderSize / 2,
-        "S"
-      );
-
-      // Draw placeholder text
-      pdf.setFont(SARABUN_FONT, "bold");
-      pdf.setFontSize(16);
-      pdf.setTextColor(0, 0, 0);
-      const garudaText = "สัญลักษณ์";
-      const garudaTextWidth = pdf.getTextWidth(garudaText);
-      pdf.text(
-        garudaText,
-        logoX + (placeholderSize - garudaTextWidth) / 2,
-        logoY + placeholderSize / 2 + 2
-      );
-      pdf.setTextColor(0, 0, 0);
+    if (useCustomLogoSize && logoCustomHeight > 0) {
+      finalLogoHeight = logoCustomHeight;
+      finalLogoWidth = finalLogoHeight * logoAspectRatio;
+    } else {
+      // 💡 UPDATED: ใช้ defaultLogoHeight ที่กำหนดแบบมีเงื่อนไข
+      finalLogoHeight = defaultLogoHeight;
+      finalLogoWidth = defaultLogoHeight * logoAspectRatio;
     }
 
-    // 💡 Logic: วาดเฉพาะเมื่อมี URL หรือเมื่อเกิด Error ในการโหลด URL
+    // --- 1. Logo Position Calculation
+    const logoX = senderX;
+    const logoY = senderY - finalLogoHeight - logoSenderGap;
+    // --- End Logo Position Calculation
+
+    // 💡 Logic: วาดเฉพาะเมื่อมี URL
     if (logoUrl) {
       try {
-        // Image URL
         pdf.addImage(
           logoUrl,
           "PNG", // Assuming PNG or compatible format
           logoX,
           logoY,
-          logoWidth,
-          LOGO_HEIGHT
+          finalLogoWidth, // 💡 UPDATED
+          finalLogoHeight // 💡 UPDATED
         );
       } catch (error) {
         console.error("Error adding image to PDF from URL:", error);
-        // วาด Mock-up หากการโหลด URL ล้มเหลว
-        drawDefaultGaruda();
       }
     }
-    // 💡 หาก logoUrl ว่างเปล่า จะไม่วาดอะไรเลยตามคำขอ
     // --- End Logo
 
-    // --- 2. Sender Address
-    const senderX = margin;
-    let senderY = margin + 42;
-    const lineSpacing = 8;
-
-    pdf.setFontSize(18);
+    // 💡 Sender Address - เริ่มต้น
+    pdf.setFontSize(senderFontSize);
     pdf.setTextColor(0, 0, 0);
 
-    // Document Number (Bold)
-    pdf.setFont(SARABUN_FONT, "bold");
-    pdf.text(senderData.documentNumber, senderX, senderY);
-    senderY += lineSpacing;
-
-    // Remaining sender info (Normal)
-    pdf.setFont(SARABUN_FONT, "normal");
     const senderLines = [
+      senderData.documentNumber,
       senderData.senderOrg,
       senderData.senderUniversity,
       senderData.senderAddress1,
       senderData.senderAddress2,
       senderData.senderPostal,
     ];
+
+    // 💡 MODIFIED LOGIC: Loop through all sender lines and apply bold/normal formatting dynamically
     senderLines.forEach((line) => {
-      pdf.text(line, senderX, senderY);
-      senderY += lineSpacing;
+      // ตรวจสอบว่าบรรทัดนั้นมีข้อมูลหรือไม่
+      const trimmedLine = line ? line.trim() : "";
+
+      if (trimmedLine.length > 0) {
+        // กำหนดรูปแบบตัวอักษร: Bold สำหรับบรรทัดแรกที่ถูกวาด, Normal สำหรับบรรทัดถัดไป
+        if (!isFirstSenderLineDrawn) {
+          pdf.setFont(SARABUN_FONT, "bold");
+          isFirstSenderLineDrawn = true;
+        } else {
+          pdf.setFont(SARABUN_FONT, "normal");
+        }
+
+        // วาดข้อความและเลื่อนตำแหน่ง Y
+        pdf.text(trimmedLine, senderX, senderY);
+        senderY += lineSpacing;
+      }
     });
 
     // --- 3. Stamp Box
     if (stampText && stampText.trim().length > 0) {
-      pdf.setFontSize(14);
+      pdf.setFontSize(stampFontSize);
       const stampLines = stampText.split("\n");
 
       const paddingX = 3;
       const paddingY = 1.5;
-      const stampLineSpacing = 7;
 
       let maxWidth = 0;
       stampLines.forEach((line) => {
@@ -181,16 +227,15 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     }
 
     // --- 4. Recipient Details
-    const recipientBaseX = pageWidth * 0.3;
-    const recipientBaseY = pageHeight * 0.6;
-    const recipientLineSpacing = 12;
+    const recipientBaseX = pageWidth * recipientBaseXFactor;
+    const recipientBaseY = pageHeight * recipientBaseYFactor;
 
-    pdf.setFontSize(26);
+    pdf.setFontSize(recipientFontSize);
     pdf.setFont(SARABUN_FONT, "bold");
     pdf.setTextColor(0, 0, 0);
 
     const labelWidth = pdf.getTextWidth(greetingText);
-    const detailGap = 8;
+    const detailGap = isA4Landscape ? 8 : 5;
     let recipientDetailX;
     let startY = recipientBaseY;
 
@@ -222,7 +267,12 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
       recipientDetailX,
       startY + recipientLineSpacing * 2
     );
-    pdf.text(data.recipientPostal, recipientDetailX, startY + 39);
+    // ใช้ค่า offset ที่แตกต่างกันสำหรับรหัสไปรษณีย์
+    pdf.text(
+      data.recipientPostal,
+      recipientDetailX,
+      startY + recipientPostalYOffset
+    );
   });
 
   return pdf.output("datauristring");
