@@ -512,7 +512,7 @@ export default function DocumentEditor() {
                         // 💡 Tooltip for envelope size
                         title={`ซองจดหมายขนาด ${CUSTOM_PAPER_WIDTH_MM}x${CUSTOM_PAPER_HEIGHT_MM} มม.`}
                       >
-                        (ซองจดหมาย) {CUSTOM_PAPER_LABEL}
+                        ซองจดหมาย {CUSTOM_PAPER_LABEL}
                       </TabsTrigger>
                     </TabsList>
                     <TabsContent
