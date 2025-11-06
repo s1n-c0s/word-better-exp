@@ -101,7 +101,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
   const stampLineSpacing: number = isA4Landscape ? 7 : 5;
   // 💡 CHANGED: Adjusted factor from 0.45 to 0.44 for 2mm left shift on custom size
   const recipientBaseXFactor: number = isA4Landscape ? 0.3 : 0.38;
-  const recipientBaseYFactor: number = isA4Landscape ? 0.6 : 0.5;
+  const recipientBaseYFactor: number = isA4Landscape ? 0.6 : 0.54;
   const recipientLineSpacing: number = isA4Landscape ? 12 : 9;
   const recipientFontSize: number = isA4Landscape ? 26 : 20;
   // ค่าสำหรับบรรทัดสุดท้าย (รหัสไปรษณีย์)

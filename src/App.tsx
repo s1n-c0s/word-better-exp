@@ -155,13 +155,13 @@ export default function DocumentEditor() {
   // Handler สำหรับ shadcn/ui Switch (Stamp)
   const handleSwitchChange = (checked: boolean) => {
     setDisableStamp(!checked);
-    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
+    // Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 Handler สำหรับ shadcn/ui Switch (Logo)
   const handleLogoSwitchChange = (checked: boolean) => {
     setDisableLogo(!checked);
-    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
+    // Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
@@ -192,7 +192,7 @@ export default function DocumentEditor() {
   // 💡 Handler สำหรับ Switch ตำแหน่งคำขึ้นต้น
   const handleGreetingPositionChange = (checked: boolean) => {
     setGreetingPosition(checked ? "top" : "left");
-    // 💡 Toast Logic ถูกย้ายไปที่ onClick ของ div
+    // Toast Logic ถูกย้ายไปที่ onClick ของ div
   };
 
   // 💡 NEW: Handler สำหรับ Switch ขนาดโลโก้
@@ -494,21 +494,34 @@ export default function DocumentEditor() {
                   <Tabs
                     defaultValue="A4"
                     value={paperSize}
-                    onValueChange={(value) =>
-                      setPaperSize(value as "A4" | "Custom108x235")
-                    }
+                    onValueChange={(value) => {
+                      setPaperSize(value as "A4" | "Custom108x235");
+                      // 💡 ADDED: Toast Message เมื่อเปลี่ยน Tab
+                      if (value === "Custom108x235") {
+                        toast("เลือกซองจดหมายขนาด 10.8x23.5 ซม. (แนวนอน)", {
+                          icon: "✉️",
+                          duration: 2000,
+                        });
+                      } else {
+                        toast.success("กลับไปใช้ขนาด A4 มาตรฐานแล้ว", {
+                          duration: 2000,
+                        });
+                      }
+                    }}
                     className="w-full mt-3"
                   >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger
                         value="A4"
-                        className="font-semibold text-base"
+                        // 💡 FIXED: เพิ่มสีแดงอ่อนเมื่อ Active
+                        className="font-semibold text-base data-[state=active]:bg-red-100 dark:data-[state=active]:bg-red-900/40 data-[state=active]:text-red-700 dark:data-[state=active]:text-red-300"
                       >
                         A4 (21 x 29.7 ซม.)
                       </TabsTrigger>
                       <TabsTrigger
                         value="Custom108x235"
-                        className="font-semibold text-base"
+                        // 💡 FIXED: ใช้คลาสเดียวกันเพื่อให้ Current Tab เป็นสีแดงเสมอ
+                        className="font-semibold text-base data-[state=active]:bg-red-100 dark:data-[state=active]:bg-red-900/40 data-[state=active]:text-red-700 dark:data-[state=active]:text-red-300"
                         // 💡 Tooltip for envelope size
                         title={`ซองจดหมายขนาด ${CUSTOM_PAPER_WIDTH_MM}x${CUSTOM_PAPER_HEIGHT_MM} มม.`}
                       >
@@ -523,7 +536,8 @@ export default function DocumentEditor() {
                     </TabsContent>
                     <TabsContent
                       value="Custom108x235"
-                      className="pt-4 text-sm text-gray-600 dark:text-gray-400"
+                      // 💡 ADDED: เพิ่มพื้นหลังสีแดงอ่อนและขอบ
+                      className="pt-4 text-sm text-gray-600 dark:text-gray-400 bg-red-50/50 dark:bg-red-950/30 p-4 rounded-md border border-red-200 dark:border-red-800"
                     >
                       ใช้สำหรับซองจดหมายขนาดกำหนดเอง (235 x 108 มม. แนวนอน)
                     </TabsContent>
@@ -648,7 +662,7 @@ export default function DocumentEditor() {
                   <div
                     className="flex justify-between items-center bg-blue-100 dark:bg-blue-900/40 p-3 rounded-md border border-blue-300/50 dark:border-blue-800 cursor-pointer"
                     onClick={() => {
-                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeTop) ก่อน
+                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeTop) ก่อน และแก้ไข Toast
                       const willBeTop = greetingPosition === "left";
                       handleGreetingPositionChange(willBeTop);
                       if (willBeTop) {
@@ -711,7 +725,7 @@ export default function DocumentEditor() {
                 <div
                   className="flex justify-between items-center bg-purple-100 dark:bg-purple-900/40 p-3 rounded-md border border-purple-300/50 dark:border-purple-800 cursor-pointer"
                   onClick={() => {
-                    // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน
+                    // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน และแก้ไข Toast
                     const willBeEnabled = !isStampEnabled;
                     handleSwitchChange(willBeEnabled);
                     if (willBeEnabled) {
@@ -768,7 +782,7 @@ export default function DocumentEditor() {
                   <div
                     className="flex justify-between items-center bg-green-100 dark:bg-green-900/40 p-3 rounded-md border border-green-300/50 dark:border-green-800 cursor-pointer mt-3"
                     onClick={() => {
-                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน
+                      // 💡 FIXED: คำนวณสถานะใหม่ (willBeEnabled) ก่อน และแก้ไข Toast
                       const willBeEnabled = !isLogoEnabled;
                       handleLogoSwitchChange(willBeEnabled);
                       if (willBeEnabled) {
@@ -851,7 +865,7 @@ export default function DocumentEditor() {
                       }`}
                       onClick={() => {
                         if (!isLogoEnabled) return;
-                        // 💡 FIXED: คำนวณสถานะใหม่ (willBeCustomSize) ก่อน
+                        // 💡 FIXED: คำนวณสถานะใหม่ (willBeCustomSize) ก่อน และแก้ไข Toast
                         const willBeCustomSize = !useCustomSize;
                         handleCustomSizeSwitchChange(willBeCustomSize);
 
