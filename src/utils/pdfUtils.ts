@@ -6,7 +6,7 @@ import { RecipientData, SenderData } from "../types/document";
 
 // TH Sarabun New font name (must be loaded in the main app before use)
 const SARABUN_FONT = "THSarabunNew";
-const LOGO_HEIGHT = 20.5; // Fixed height in mm
+const LOGO_HEIGHT = 20.5; // Fixed height in mm (A4 Default)
 
 // 💡 NEW: Interface for jsPDF Options to eliminate 'any'
 interface JsPdfOptions {
@@ -94,16 +94,18 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
   const senderYStart: number = isA4Landscape ? margin + 42 : margin + 15;
   const lineSpacing: number = isA4Landscape ? 8 : 6;
   const logoSenderGap: number = isA4Landscape ? 8 : 5;
-  // 💡 FIXED: Add senderFontSize variable
+  // 💡 NEW: Define default logo height conditionally
+  const defaultLogoHeight: number = isA4Landscape ? LOGO_HEIGHT : 12; // CHANGED: 10mm for custom size
   const senderFontSize: number = isA4Landscape ? 18 : 14;
   const stampFontSize: number = isA4Landscape ? 14 : 12;
   const stampLineSpacing: number = isA4Landscape ? 7 : 5;
-  const recipientBaseXFactor: number = isA4Landscape ? 0.3 : 0.45;
-  const recipientBaseYFactor: number = isA4Landscape ? 0.6 : 0.45;
+  // 💡 CHANGED: Adjusted factor from 0.45 to 0.44 for 2mm left shift on custom size
+  const recipientBaseXFactor: number = isA4Landscape ? 0.3 : 0.38;
+  const recipientBaseYFactor: number = isA4Landscape ? 0.6 : 0.5;
   const recipientLineSpacing: number = isA4Landscape ? 12 : 9;
   const recipientFontSize: number = isA4Landscape ? 26 : 20;
   // ค่าสำหรับบรรทัดสุดท้าย (รหัสไปรษณีย์)
-  const recipientPostalYOffset: number = isA4Landscape ? 39 : 32;
+  const recipientPostalYOffset: number = isA4Landscape ? 39 : 28;
 
   // 💡 Instantiate jsPDF with dynamic options
   const pdf = new jsPDF(pdfOptions);
@@ -127,8 +129,9 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
       finalLogoHeight = logoCustomHeight;
       finalLogoWidth = finalLogoHeight * logoAspectRatio;
     } else {
-      finalLogoHeight = LOGO_HEIGHT;
-      finalLogoWidth = LOGO_HEIGHT * logoAspectRatio;
+      // 💡 UPDATED: ใช้ defaultLogoHeight ที่กำหนดแบบมีเงื่อนไข
+      finalLogoHeight = defaultLogoHeight;
+      finalLogoWidth = defaultLogoHeight * logoAspectRatio;
     }
 
     // --- 1. Logo Position Calculation
@@ -154,7 +157,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     // --- End Logo
 
     // 💡 Sender Address - เริ่มต้น
-    pdf.setFontSize(senderFontSize); // 💡 FIXED: ใช้ตัวแปร senderFontSize ที่ถูกประกาศแล้ว
+    pdf.setFontSize(senderFontSize);
     pdf.setTextColor(0, 0, 0);
 
     // Document Number (Bold)
@@ -221,7 +224,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     pdf.setTextColor(0, 0, 0);
 
     const labelWidth = pdf.getTextWidth(greetingText);
-    const detailGap = isA4Landscape ? 8 : 5; // A4: 8, Custom: 5
+    const detailGap = isA4Landscape ? 8 : 5;
     let recipientDetailX;
     let startY = recipientBaseY;
 
