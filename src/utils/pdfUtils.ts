@@ -8,7 +8,6 @@ import { RecipientData, SenderData } from "../types/document";
 const SARABUN_FONT = "THSarabunNew";
 const LOGO_HEIGHT = 23.5; // Fixed height in mm
 
-// 💡 UPDATED: เพิ่มพารามิเตอร์สำหรับขนาดที่กำหนดเอง
 interface PdfGenerationArgs {
   recipientsData: RecipientData[];
   senderData: SenderData;
@@ -62,23 +61,35 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     pdf.setFont(SARABUN_FONT, "normal");
     pdf.setTextColor(0, 0, 0); // Monochrome Black
 
-    // --- 1. Logo (23.5mm height, variable width OR custom size)
-    const logoX = margin;
-    const logoY = margin + 10;
+    // --- 2. Sender Address (Start calculation here)
+    const senderX = margin;
+    // 💡 UPDATED: ใช้ตำแหน่ง Y เริ่มต้นของผู้ส่ง 42mm จากขอบ (เหมือนเดิม)
+    let senderY = margin + 42;
+    const lineSpacing = 8;
 
-    // 💡 NEW LOGIC: กำหนดขนาดโลโก้
+    // 💡 NEW CALCULATION: ตำแหน่ง Y ของโลโก้
+    // โลโก้จะถูกวางให้ส่วนล่างของโลโก้ (logoY + finalLogoHeight) มีระยะห่าง 5mm จาก senderY (บรรทัดแรกของผู้ส่ง)
+    const LOGO_SENDER_GAP = 8;
+
+    // 💡 1. กำหนดขนาดโลโก้
     let finalLogoWidth: number;
     let finalLogoHeight: number;
 
     if (useCustomLogoSize && logoCustomWidth > 0 && logoCustomHeight > 0) {
-      // 1. ใช้ขนาดที่ผู้ใช้กำหนดเอง หากเปิดใช้งานและค่ามากกว่า 0
+      // ใช้ขนาดที่ผู้ใช้กำหนดเอง
       finalLogoWidth = logoCustomWidth;
       finalLogoHeight = logoCustomHeight;
     } else {
-      // 2. ใช้การคำนวณจาก Aspect Ratio และความสูงคงที่ (ค่าเริ่มต้น)
+      // ใช้การคำนวณจาก Aspect Ratio และความสูงคงที่ (ค่าเริ่มต้น)
       finalLogoHeight = LOGO_HEIGHT;
       finalLogoWidth = LOGO_HEIGHT * logoAspectRatio;
     }
+
+    // --- 1. Logo Position Calculation
+    const logoX = margin;
+    // 💡 CHANGED: คำนวณ logoY จาก senderY
+    const logoY = senderY - finalLogoHeight - LOGO_SENDER_GAP;
+    // --- End Logo Position Calculation
 
     function drawDefaultGaruda() {
       // ฟังก์ชันสำหรับวาดสัญลักษณ์เริ่มต้น (Mock-up)
@@ -138,11 +149,7 @@ export const createPdfDataUri = (args: PdfGenerationArgs): string => {
     // 💡 หาก logoUrl ว่างเปล่า จะไม่วาดอะไรเลยตามคำขอ
     // --- End Logo
 
-    // --- 2. Sender Address
-    const senderX = margin;
-    let senderY = margin + 42;
-    const lineSpacing = 8;
-
+    // 💡 Sender Address - เริ่มต้นที่บรรทัดถัดไป
     pdf.setFontSize(18);
     pdf.setTextColor(0, 0, 0);
 
