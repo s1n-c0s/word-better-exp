@@ -32,12 +32,6 @@ const CUSTOM_PAPER_WIDTH_MM = 108; // ความกว้างเดิม (�
 const CUSTOM_PAPER_HEIGHT_MM = 235; // ความสูงเดิม (ใช้เป็น Width เมื่อเป็นแนวนอน)
 const CUSTOM_PAPER_LABEL = `10.8 x 23.5 ซม.`;
 
-// Aspect Ratio (Width/Height) สำหรับการแสดงผล Preview
-// A4 Landscape: W=297, H=210 -> Ratio = 297/210 ≈ 1.414
-const A4_W_H_RATIO = 297 / 210;
-// Custom Landscape: W=235, H=108 -> Ratio = 235/108 ≈ 2.176
-const CUSTOM_W_H_RATIO = CUSTOM_PAPER_HEIGHT_MM / CUSTOM_PAPER_WIDTH_MM;
-
 export default function DocumentEditor() {
   const [pdfUrl, setPdfUrl] = useState("");
 
@@ -414,9 +408,8 @@ export default function DocumentEditor() {
   const isStampEnabled = !disableStamp;
   const isLogoEnabled = !disableLogo;
 
-  // 💡 NEW: Calculate the current aspect ratio (Width/Height)
-  const currentAspectRatio =
-    paperSize === "A4" ? A4_W_H_RATIO : CUSTOM_W_H_RATIO;
+  // 💡 REMOVED: currentAspectRatio variable is no longer needed in JSX for sizing
+  // const currentAspectRatio = paperSize === "A4" ? A4_W_H_RATIO : CUSTOM_W_H_RATIO;
 
   return (
     <div className="h-screen w-full bg-gray-100 dark:bg-gray-900">
@@ -448,28 +441,26 @@ export default function DocumentEditor() {
 
         {/* --- Main Content: ส่วน Preview PDF และ Input Box ใหม่ --- */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* 💡 UPDATED: Preview Panel - Set to full left, scrollable, no border/shadow on paper */}
-          <div className="flex-1 lg:w-3/5 overflow-auto p-0 bg-gray-100 dark:bg-gray-900 flex items-start justify-center">
-            {/* 💡 Inner container to add padding around the PDF in the scrollable view */}
-            <div className="p-4 w-full h-full">
-              {pdfUrl ? (
-                // 💡 FIX: Use inline style with calculated aspect ratio for sizing
-                <iframe
-                  title="PDF Preview"
-                  src={pdfUrl}
-                  className="w-full h-auto border-none shadow-xl bg-white"
-                  // ใช้ style attribute เพื่อกำหนด aspect-ratio แบบ dynamic
-                  style={{
-                    maxWidth: paperSize === "A4" ? "800px" : "90%",
-                    aspectRatio: `${currentAspectRatio}/1`,
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">
-                  กำลังโหลด PDF Preview...
-                </div>
-              )}
-            </div>
+          {/* 💡 UPDATED: Preview Panel - Full area, fills 100% of w/h */}
+          <div className="flex-1 lg:w-3/5 overflow-auto p-0 bg-gray-100 dark:bg-gray-900">
+            {pdfUrl ? (
+              // 💡 FIX: The iframe fills the entire panel area (100% width, 100% height)
+              <iframe
+                title="PDF Preview"
+                src={pdfUrl}
+                // w-full h-full: Fills the entire visible panel area (100% width, 100% height)
+                // shadow-xl bg-white: Kept to visually represent the paper filling the area
+                className="w-full h-full border-none shadow-xl bg-white"
+                style={
+                  // Inline styles removed as requested, using only w-full h-full classes
+                  {}
+                }
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-500">
+                กำลังโหลด PDF Preview...
+              </div>
+            )}
           </div>
 
           {/* 💡 Input Panel ใหม่: แยกช่องกรอกผู้ส่ง/ผู้รับ */}
@@ -500,8 +491,10 @@ export default function DocumentEditor() {
                       <TabsTrigger
                         value="Custom108x235"
                         className="font-semibold text-base"
+                        // 💡 Tooltip for envelope size
+                        title={`ซองจดหมายขนาด ${CUSTOM_PAPER_WIDTH_MM}x${CUSTOM_PAPER_HEIGHT_MM} มม.`}
                       >
-                        {CUSTOM_PAPER_LABEL} (ซองจดหมาย)
+                        (ซองจดหมาย) {CUSTOM_PAPER_LABEL}
                       </TabsTrigger>
                     </TabsList>
                     <TabsContent
