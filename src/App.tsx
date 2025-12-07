@@ -118,25 +118,19 @@ export default function DocumentEditor() {
   // Handler สำหรับช่องกรอกข้อมูลผู้ส่ง
   const handleSenderChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    setSenderInput(value);
-    parseSenderInput(value);
-  };
-
-  // 💡 NEW: Hotkey Handler for Sender Input (Tab fills Foundation Data)
-  const handleSenderInputKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
-    // If Tab is pressed and the input is currently empty, fill with Foundation data.
-    if (e.key === "Tab" && senderInput.trim() === "") {
-      e.preventDefault();
-
+    // 💡 UPDATED: Hotkey Logic: If input is exactly "8732", fill foundation data.
+    if (value.trim() === "8732") {
       // Use the imported constant string to fill the input box
       setSenderInput(FOUNDATION_SENDER_INPUT_STRING);
       // Use the structured data constant to update the parsed data state
       setSenderData(FOUNDATION_SENDER_DATA);
 
-      toast.success("กรอกข้อมูลผู้ส่ง (วิทยาลัยฯ) ด้วย Tab เรียบร้อยแล้ว");
+      toast.success("กรอกข้อมูลผู้ส่ง (วิทยาลัยฯ) ด้วย '8732' เรียบร้อยแล้ว");
+      return; // Stop here, no need to parse '8732'
     }
+
+    setSenderInput(value);
+    parseSenderInput(value);
   };
 
   // Handler สำหรับช่องกรอกข้อมูลผู้รับ
@@ -575,7 +569,6 @@ export default function DocumentEditor() {
                 <textarea
                   value={senderInput}
                   onChange={handleSenderChange}
-                  onKeyDown={handleSenderInputKeyDown} // 💡 NEW: Hotkey for Tab (fills Foundation data)
                   rows={6}
                   placeholder={`
 1. เลขที่หนังสือ
