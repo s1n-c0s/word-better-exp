@@ -160,16 +160,16 @@ export default function DocumentEditor() {
 
   // 💡 Handler สำหรับช่องกรอก URL โลโก้
   const handleLogoUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setLogoUrl(e.target.value);
-  };
+    const value = e.target.value;
 
-  // 💡 Handler สำหรับกดปุ่ม Tab ในช่องกรอกโลโก้
-  const handleLogoInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Fill the example URL if the field is currently empty and Tab is pressed
-    if (e.key === "Tab" && !logoUrl) {
-      e.preventDefault();
+    // 💡 UPDATED: Hotkey Logic: If input is exactly "8732", fill example URL.
+    if (value.trim() === "8732") {
       setLogoUrl(EXAMPLE_LOGO_URL);
+      toast.success("กรอกลิงก์โลโก้ตัวอย่างด้วย '8732' เรียบร้อยแล้ว");
+      return; // Stop here, prevent setting '8732' as the actual URL
     }
+
+    setLogoUrl(value);
   };
 
   // 💡 Handler สำหรับช่องกรอกคำขึ้นต้น
@@ -814,7 +814,6 @@ export default function DocumentEditor() {
                         type="text"
                         value={logoUrl}
                         onChange={handleLogoUrlChange}
-                        onKeyDown={handleLogoInputKeyDown} // 💡 เพิ่ม onKeyDown handler
                         disabled={!isLogoEnabled}
                         placeholder="ใส่ลิงก์รูปภาพ (เช่น https://example.com/logo.png หรือ Data URL)"
                         // 💡 ปรับคลาสสำหรับสถานะ disabled ให้ตรงกับ textarea ตราประทับ
